@@ -1,0 +1,218 @@
+#pragma once
+
+#include "fmt/format.h"
+#include "pros/rtos.hpp"
+#include "pros/screen.hpp"
+#include <cstdint>
+#include <vector>
+
+namespace screen {
+
+/// Identifiers for the three interactive bottom buttons
+enum class ButtonId { NONE = -1, LEFT = 0, MIDDLE = 1, RIGHT = 2 };
+/**
+ * @brief Manages a specific UI layout with scrolling text and three bottom
+ * buttons.
+ */
+class Manager {
+public:
+  // --- Configuration Constants ---
+
+  /// Standard V5 Brain screen width
+  inline static constexpr int SCREEN_WIDTH = 480;
+  /// Usable height for this UI layout (excluding status bar area and bottom
+  /// buttons)
+  inline static constexpr int SCREEN_HEIGHT = 210;
+  /// Height of the bottom interactive buttons
+  inline static constexpr int BTN_HEIGHT = 40;
+  /// Width of the bottom interactive buttons
+  inline static constexpr int BTN_WIDTH = 100;
+  /// Y-coordinate for the top edge of the button row
+  inline static constexpr int BTN_Y = 190;
+  /// Extra pixel tolerance for touch detection around buttons
+  inline static constexpr int PADDING = 5;
+  ///< approx width per char in pixels
+  static constexpr int CHAR_WIDTH = 8;
+  ///< approx height per char in pixels
+  static constexpr int CHAR_HEIGHT = 12;
+
+  // UI Styling
+
+  /// Button background color (dark gray)
+  inline static constexpr uint32_t COLOR_BTN_FILL = 0x3D3D3D;
+  /// Button outline color (light gray)
+  inline static constexpr uint32_t COLOR_BTN_BORDER = 0x707070;
+  /// Maximum text lines retained in the scrolling buffer
+  inline static constexpr int MAX_ROWS = 8;
+  /// Pixel spacing between text lines
+  inline static constexpr int ROW_HEIGHT = 20;
+
+  Manager() = default;
+
+  /**
+   * @brief RAII wrapper for PROS mutexes.
+   * @details Automatically takes the mutex on construction and gives it on
+   * destruction.
+   */
+  struct MutexGuard {
+    pros::Mutex &m;
+    bool locked = false;
+
+    explicit inline MutexGuard(pros::Mutex &m) : m(m) { locked = m.take(); }
+    explicit inline MutexGuard(pros::Mutex &m, uint32_t timeout) : m(m) { locked = m.take(timeout); }
+
+    ~MutexGuard() { if (locked) m.give(); }
+
+    bool isLocked() const { return locked; }
+    MutexGuard(const MutexGuard &) = delete;
+    MutexGuard &operator=(const MutexGuard &) = delete;
+  };
+
+  /**
+   * @brief Renders the three interactive capsule buttons at the bottom of the
+   * screen.
+   * @param redraw If @c true, clears the entire screen before drawing buttons.
+   */
+  void drawBottomButtons(bool redraw = true);
+
+  /**
+   * @brief Blocks until one of the bottom buttons is tapped and released.
+   * @param timeout Maximum wait time in milliseconds.
+   * @return The @ref ButtonId of the tapped button, or @c ButtonId::NONE if
+   * timed out.
+   */
+  ButtonId waitForBottomButtonTap(uint32_t timeout = TIMEOUT_MAX);
+
+  /**
+   * @brief Blocks execution until a screen touch event occurs.
+   * * @param timeoutMs Maximum time to wait in milliseconds. Default is
+   * infinite.
+   * @param detectTouchOnly If @c true, returns on any contact. If @c false,
+   * waits for a press and release.
+   * @return @c true if touched within timeout, @c false if timed out.
+   * @example
+   * // Wait 2 seconds for a user to tap the screen
+   * if (waitForScreenTouch(2000)) startAuton();
+   * @endcode
+   */
+  bool waitForScreenTouch(uint32_t timeoutMs = TIMEOUT_MAX,
+                          bool detectTouchOnly = false);
+
+  /**
+   * @brief Clears the screen and resets the internal line buffer.
+   */
+  void clearScreen();
+
+  /**
+   * @brief Formats and displays scrolling text on the Robot Brain.
+   * @details Manages a scrolling buffer of text lines. If the screen fills up,
+   * the oldest line is removed.
+   * @param clearScreen If @c true, clears the screen and internal text buffer
+   * before printing.
+   * @param name Optional prefix (e.g. system name). If provided, prepends
+   * "Name: " to the message.
+   * @param format printf-style format string.
+   * @param ... Arguments for the format string.
+   * @example
+   * // Result: "Chassis: Position: 10.5"
+   * printToScreen(false, "Chassis", "Position: %.1f", 10.5);
+   * @endcode
+   */
+  template <typename... Args>
+  void printToScreen(bool clear, uint16_t x, uint16_t y, 
+                     const char *format, Args &&...args) {
+    // Thread safety
+    MutexGuard m(sharedMutex);
+    if (!m.isLocked()) return;
+
+    // Clear screen area if requested
+    if (clear) {
+      textLines.clear();
+      pros::screen::erase_rect(0, 0, x, y);
+    }
+
+    // Format the string safely using fmt
+    std::string formatted = fmt::format(fmt::runtime(format), std::forward<Args>(args)...);
+
+    // Split into logical lines by '\n' first
+    std::vector<std::string> logicalLines;
+    size_t pos = 0;
+    size_t next;
+    while ((next = formatted.find('\n', pos)) != std::string::npos) {
+      logicalLines.push_back(formatted.substr(pos, next - pos));
+      pos = next + 1;
+    }
+    // Push the remaining part
+    logicalLines.push_back(formatted.substr(pos));
+
+    // Automatic text wrapping (naive)
+    size_t maxCharsPerLine = (SCREEN_WIDTH - x) / CHAR_WIDTH;
+
+    for (const auto& line : logicalLines) {
+      size_t start = 0;
+      while (start < line.size()) {
+        size_t len = std::min(maxCharsPerLine, line.size() - start);
+
+        // If remainder fits entirely, just push it and break
+        if (start + len >= line.size()) {
+          textLines.push_back(line.substr(start));
+          break;
+        }
+
+        // Look for the last space within this allowed range
+        size_t splitPos = line.rfind(' ', start + len);
+        if (splitPos != std::string::npos && splitPos > start) {
+          // Cut at the space
+          textLines.push_back(line.substr(start, splitPos - start));
+          start = splitPos + 1; // skip the space
+        } else {
+          // No space, force a hard cut
+          textLines.push_back(line.substr(start, len));
+          start += len;
+        }
+      }
+    }
+    uint16_t MAX_ROWS_WITH_OFFSET = std::ceil((SCREEN_HEIGHT - y) / CHAR_HEIGHT);
+    // Clamp the number of lines
+    while (textLines.size() > MAX_ROWS) textLines.erase(textLines.begin());
+
+    // Redraw all lines
+    for (size_t i = 0; i < textLines.size(); ++i) {
+      pros::screen::print(pros::E_TEXT_SMALL, x,
+                          static_cast<int>(i * ROW_HEIGHT) + y, "%s",
+                          textLines[i].c_str());
+                          pros::delay(15);
+    }
+  }
+
+  template <typename... Args>
+  void printToScreen(const char *format, Args &&...args) {
+    // Convenience wrapper: forwards to full overload
+    printToScreen(false, 0, 0, format, std::forward<Args>(args)...);
+  }
+
+private:
+  std::vector<std::string> textLines{5};
+  pros::Mutex sharedMutex;
+
+  // Internal coordinate calculation
+  inline static constexpr int getGap() {
+    return (SCREEN_WIDTH - (3 * BTN_WIDTH)) / 4;
+  }
+  inline static constexpr int getX(ButtonId id) {
+    return (getGap() * (static_cast<int>(id) + 1)) +
+           (BTN_WIDTH * static_cast<int>(id));
+  }
+
+  /**
+   * @brief Helper to draw a capsule (rounded rectangle) shape.
+   * @details Used internally to render the buttons.
+   */
+  void drawCapsule(int x, int y, int width, int height, uint32_t fillColor,
+                   uint32_t borderColor);
+
+  /// Checks if a coordinate pair lies within a specified bounding box
+  bool isInside(int px, int py, int bx, int by, int w, int h);
+};
+
+} // namespace screen
