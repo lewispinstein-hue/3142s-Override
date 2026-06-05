@@ -1,6 +1,8 @@
 #pragma once
 
 #include "main.h"
+#include "drive.hpp"
+#include "screen.hpp"
 #include "lemlib/api.hpp"
 
 #define MVLIB_USE_SIMPLES

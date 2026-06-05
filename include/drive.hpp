@@ -46,19 +46,17 @@ enum class DriveMode {
 
 struct ExpoTurnConfig {
   float expoTurn = 1.9;
-  int deadband = 20;
-  
+
   int joystickSpeedOverrideThreshold = 126;
   int robotSpeedOverrideThreshold = 100;
   
   float defaultSpeedMultiplier = 90;
   float overrideSpeedMultiplier = 120;
   
-  ExpoTurnConfig(float expoTurn, int deadband,
-    int joystickSpeedOverrideThreshold,
+  ExpoTurnConfig(float expoTurn, int joystickSpeedOverrideThreshold,
     int robotSpeedOverrideThreshold, float defaultSpeedMultiplier,
     float overrideSpeedMultiplier)
-    : expoTurn(expoTurn), deadband(deadband),
+    : expoTurn(expoTurn),
     joystickSpeedOverrideThreshold(joystickSpeedOverrideThreshold),
     robotSpeedOverrideThreshold(robotSpeedOverrideThreshold),
     defaultSpeedMultiplier(defaultSpeedMultiplier),
@@ -70,7 +68,6 @@ struct DriveConfig {
   ExpoTurnConfig expoTurnConfig;
   DriveMode driveMode;
   float expoThrottle;
-  float expoTurn;
   float deadband;
   float desaturateBias;
 };
@@ -95,8 +92,8 @@ struct Velocities {
   float rightVelocity;
 };
 
-Velocities arcade(int throttle, int turn, float desaturateBias);
-Velocities curvature(int throttle, int turn);
+Velocities arcade(double throttle, double turn, float desaturateBias);
+Velocities curvature(double throttle, double turn);
 
 void updateDrive(const DriveConfig& config);
 

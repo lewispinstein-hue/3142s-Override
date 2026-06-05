@@ -1,21 +1,16 @@
 #include "drive.hpp"
 #include "setup.hpp"
+#include <algorithm>
 #include <cmath>
 
 namespace control {
-Velocities arcade(int throttle, int turn, float desaturateBias) {
+Velocities arcade(double throttle, double turn, float desaturateBias) {
   // desaturate motors based on joyBias
   if (std::abs(throttle) + std::abs(turn) > 127) {
-    int oldThrottle = throttle;
-    int oldTurn = turn;
+    const double oldThrottle = throttle;
+    const double oldTurn = turn;
     throttle *= (1 - desaturateBias * std::abs(oldTurn / 127.0));
     turn *= (1 - (1 - desaturateBias) * std::abs(oldThrottle / 127.0));
-    // ensure the sum of the two values is equal to 127
-    // this check is necessary because of integer division
-    if (std::abs(turn) + std::abs(throttle) == 126) {
-      if (desaturateBias < 0.5) throttle += throttle < 0 ? -1 : 1;
-      else turn += turn < 0 ? -1 : 1;
-    }
   }
 
   float leftPower = throttle + turn;
@@ -24,7 +19,7 @@ Velocities arcade(int throttle, int turn, float desaturateBias) {
   return {leftPower, rightPower};
 }
 
-Velocities curvature(int throttle, int turn) {
+Velocities curvature(double throttle, double turn) {
   // If we're not moving forwards change to arcade drive
   if (throttle == 0) {
     return arcade(throttle, turn, 0.5);
@@ -53,19 +48,18 @@ double slewLimit(double target, float& prev, MotionType type, const Slew& slew) 
 
   if (target == prev) return target;
   double delta = target - prev;
-  // Same direction?
-  bool sameDirection = (prev * target > 0);
+  const bool sameDirection = (prev * target > 0);
 
   double riseDelta = (type == MotionType::FORWARD) ? slew.risingThrottle : slew.risingAngle;
   double fallDelta = (type == MotionType::FORWARD) ? slew.fallingThrottle : slew.fallingAngle;
 
-  // Increasing magnitude in same direction -> accelerating
-  bool accelerating = sameDirection && (fabs(target) > fabs(prev));
+  // Starting from zero is still acceleration; direction reversals use the falling limit.
+  bool accelerating = (std::fabs(prev) == 0 || sameDirection) && (std::fabs(target) > std::fabs(prev));
   double maxDelta = accelerating ? riseDelta : fallDelta;
   if (delta > maxDelta) delta = maxDelta;
   if (delta < -maxDelta) delta = -maxDelta;
-  prev = target;
-  return prev + delta;
+  prev += delta;
+  return prev;
 }
 
 double expoThrottle(double input, double expoThrottle, double deadband) {
@@ -78,33 +72,32 @@ double expoThrottle(double input, double expoThrottle, double deadband) {
 }
 
 double expoTurn(double input, const ExpoTurnConfig& config) {
-  if (fabs(input) < config.deadband) return 0;
+  const bool controlOverride =
+    std::abs(controller.get_analog(ANALOG_RIGHT_X)) > config.joystickSpeedOverrideThreshold;
   
-  bool CONTROL_OVERRIDE = false;
-  if (abs(controller.get_analog(ANALOG_RIGHT_X)) > config.joystickSpeedOverrideThreshold) {
-    CONTROL_OVERRIDE = true;
-  } else {
-    CONTROL_OVERRIDE = false;
-  }
-  
-  float speed = 
-    normVel((leftDrivetrain.get_actual_velocity() + 
-            rightDrivetrain.get_actual_velocity()) / 2);
+  const double speed = std::fabs(normVel(
+    (leftDrivetrain.get_actual_velocity() + rightDrivetrain.get_actual_velocity()) / 2
+  ));
 
-  float retExpo = (speed > config.overrideSpeedMultiplier || CONTROL_OVERRIDE) 
-                     ? config.overrideSpeedMultiplier : config.defaultSpeedMultiplier;
+  const double turnMultiplier =
+    (speed > config.robotSpeedOverrideThreshold || controlOverride)
+      ? config.overrideSpeedMultiplier
+      : config.defaultSpeedMultiplier;
 
   double norm = input / 127.0;
   double linear = norm;
   double exponential = pow(fabs(norm), config.expoTurn) * ((norm >= 0) ? 1 : -1);
-  double blended = 0.39 * linear + 0.42 * exponential;
+  double blended = (0.39 * linear + 0.42 * exponential) / (0.39 + 0.42);
   if (fabs(blended) >= 1) return 127 * ((norm >= 0) ? 1 : -1);
-  return blended * retExpo;
+  return blended * turnMultiplier;
 }
 
 void updateDrive(const DriveConfig& config) {
-  const int throttle = controller.get_analog(ANALOG_LEFT_Y);
-  const int turn = controller.get_analog(ANALOG_RIGHT_X);
+  int throttle = controller.get_analog(ANALOG_LEFT_Y);
+  int turn = controller.get_analog(ANALOG_RIGHT_X);
+
+  if (abs(throttle) < config.deadband) throttle = 0;
+  if (abs(turn) < config.deadband) turn = 0;
 
   static float prevThrottle = 0;
   static float prevTurn = 0;
@@ -125,13 +118,12 @@ void updateDrive(const DriveConfig& config) {
 
   Velocities velocities;
   if (config.driveMode == DriveMode::ARCADE) {
-    velocities = arcade(throttle, turn, config.desaturateBias);
+    velocities = arcade(processedThrottle, processedTurn, config.desaturateBias);
   } else {
-    velocities = curvature(throttle, turn);
+    velocities = curvature(processedThrottle, processedTurn);
   }
 
-  // Multiply by 4.7244094488 to get rpm from voltage
-  leftDrivetrain.move_velocity(velocities.leftVelocity * 4.7244094488);
-  rightDrivetrain.move_velocity(velocities.rightVelocity * 4.7244094488);
+  leftDrivetrain.move(velocities.leftVelocity);
+  rightDrivetrain.move(velocities.rightVelocity);
 }
 } // namespace control

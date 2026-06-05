@@ -1,3 +1,5 @@
+#include "drive.hpp"
+#include "pros/motors.h"
 #include "setup.hpp"
 
 /**
@@ -7,6 +9,9 @@
  * to keep execution time for this mode under a few seconds.
  */
 void initialize() {
+	leftDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+	rightDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+
 	auto& logger = mvlib::Logger::getInstance();
 	mvlib::setOdom(&chassis);
 	logger.setRobot({
@@ -14,14 +19,15 @@ void initialize() {
 		.rightDrivetrain = &rightDrivetrain
 	});
 	logger.setMinLogLevel(LogLevel::DEBUG);
+	logger.setLogToSD(false);
 	logger.setDefaultWatches({true, true, true});
 	logger.setLoggingLocation("/beta/run#1.log");
 	logger.start();
 
 	logger.watch("Raw throttle", LogLevel::DEBUG, WatchMode::onInterval, 50_mvMs, 
 	[&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
-	logger.watch("Raw throttle", LogLevel::DEBUG, WatchMode::onInterval, 50_mvMs, 
-	[&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
+// 	logger.watch("Raw throttle", LogLevel::DEBUG, WatchMode::onInterval, 50_mvMs, 
+// 	[&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
 }
 
 /**
@@ -68,9 +74,34 @@ void autonomous() {}
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+
+control::Slew slew{
+	20,
+	0,
+	20,
+	0
+};
+
+control::ExpoTurnConfig expoTurnConfig{
+	2.1,
+	0,
+	1000,
+	90,
+	120
+};
+
+control::DriveConfig config{
+	.slew = slew,
+	.expoTurnConfig = expoTurnConfig,
+	.driveMode = control::DriveMode::ARCADE,
+	.expoThrottle = 1.8,
+	.deadband = 10,
+	.desaturateBias = 0.5
+};
+
 void opcontrol() {
 	while (true) {
-
+		control::updateDrive(config);
 		pros::delay(20);
 	}
 }

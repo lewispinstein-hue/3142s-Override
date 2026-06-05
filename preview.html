@@ -1,0 +1,225 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ExpoTurnConfig Tuner</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #111;
+    color: #eee;
+}
+.container {
+    display: flex;
+    gap: 30px;
+}
+.controls {
+    width: 350px;
+}
+.control-group {
+    margin-bottom: 18px;
+}
+label {
+    display: block;
+    margin-bottom: 6px;
+}
+input[type=range] {
+    width: 100%;
+}
+canvas {
+    background: #222;
+    border-radius: 8px;
+    padding: 10px;
+}
+.value {
+    color: #7fdcff;
+}
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.desc {
+    margin-bottom: 20px;
+    color: #bbb;
+}
+</style>
+</head>
+<body>
+
+<h1>ExpoTurnConfig Interactive Tuner</h1>
+
+<div class="desc">
+This graph visualizes your <code>expoTurn()</code> function output.<br>
+X-axis = joystick input (-127 to 127)<br>
+Y-axis = resulting turn command after expo + multiplier.
+</div>
+
+<div class="container">
+    <div class="controls">
+
+        <div class="control-group">
+            <label>expoTurn: <span class="value" id="expoTurnVal"></span></label>
+            <input type="range" id="expoTurn" min="0.1" max="4" step="0.01" value="1.7">
+        </div>
+
+        <div class="control-group">
+            <label>joystickSpeedOverrideThreshold: <span class="value" id="joyThreshVal"></span></label>
+            <input type="range" id="joyThresh" min="0" max="127" step="1" value="118">
+        </div>
+
+        <div class="control-group">
+            <label>robotSpeedOverrideThreshold: <span class="value" id="robotThreshVal"></span></label>
+            <input type="range" id="robotThresh" min="0" max="127" step="1" value="42">
+        </div>
+
+        <div class="control-group">
+            <label>defaultSpeedMultiplier: <span class="value" id="defaultMultVal"></span></label>
+            <input type="range" id="defaultMult" min="0" max="127" step="1" value="78">
+        </div>
+
+        <div class="control-group">
+            <label>overrideSpeedMultiplier: <span class="value" id="overrideMultVal"></span></label>
+            <input type="range" id="overrideMult" min="0" max="127" step="1" value="115">
+        </div>
+
+        <div class="control-group checkbox-row">
+            <input type="checkbox" id="robotOverride">
+            <label for="robotOverride">Robot speed override active</label>
+        </div>
+
+    </div>
+
+    <div style="flex-grow: 1;">
+        <canvas id="chart" width="900" height="600"></canvas>
+    </div>
+</div>
+
+<script>
+const ctx = document.getElementById('chart');
+
+const controls = {
+    expoTurn: document.getElementById('expoTurn'),
+    joyThresh: document.getElementById('joyThresh'),
+    robotThresh: document.getElementById('robotThresh'),
+    defaultMult: document.getElementById('defaultMult'),
+    overrideMult: document.getElementById('overrideMult'),
+    robotOverride: document.getElementById('robotOverride')
+};
+
+const labels = {
+    expoTurnVal: document.getElementById('expoTurnVal'),
+    joyThreshVal: document.getElementById('joyThreshVal'),
+    robotThreshVal: document.getElementById('robotThreshVal'),
+    defaultMultVal: document.getElementById('defaultMultVal'),
+    overrideMultVal: document.getElementById('overrideMultVal')
+};
+
+function expoTurnFunction(input, config) {
+    const controlOverride =
+        Math.abs(input) > config.joystickSpeedOverrideThreshold;
+
+    const turnMultiplier =
+        (config.robotOverride || controlOverride)
+            ? config.overrideSpeedMultiplier
+            : config.defaultSpeedMultiplier;
+
+    const norm = input / 127.0;
+    const linear = norm;
+    const exponential =
+        Math.pow(Math.abs(norm), config.expoTurn) *
+        (norm >= 0 ? 1 : -1);
+
+    const blended =
+        (0.39 * linear + 0.42 * exponential) / (0.39 + 0.42);
+
+    if (Math.abs(blended) >= 1)
+        return 127 * (norm >= 0 ? 1 : -1);
+
+    return blended * turnMultiplier;
+}
+
+function getConfig() {
+    return {
+        expoTurn: parseFloat(controls.expoTurn.value),
+        joystickSpeedOverrideThreshold: parseInt(controls.joyThresh.value),
+        robotSpeedOverrideThreshold: parseInt(controls.robotThresh.value),
+        defaultSpeedMultiplier: parseFloat(controls.defaultMult.value),
+        overrideSpeedMultiplier: parseFloat(controls.overrideMult.value),
+        robotOverride: controls.robotOverride.checked
+    };
+}
+
+function updateLabels(config) {
+    labels.expoTurnVal.textContent = config.expoTurn.toFixed(2);
+    labels.joyThreshVal.textContent = config.joystickSpeedOverrideThreshold;
+    labels.robotThreshVal.textContent = config.robotSpeedOverrideThreshold;
+    labels.defaultMultVal.textContent = config.defaultSpeedMultiplier;
+    labels.overrideMultVal.textContent = config.overrideSpeedMultiplier;
+}
+
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        datasets: [{
+            label: 'Turn Output',
+            data: [],
+            borderWidth: 3,
+            tension: 0.15
+        }]
+    },
+    options: {
+        responsive: false,
+        animation: false,
+        scales: {
+            x: {
+                type: 'linear',
+                min: -127,
+                max: 127,
+                title: {
+                    display: true,
+                    text: 'Joystick Input'
+                }
+            },
+            y: {
+                min: -127,
+                max: 127,
+                title: {
+                    display: true,
+                    text: 'Output'
+                }
+            }
+        }
+    }
+});
+
+function redraw() {
+    const config = getConfig();
+
+    updateLabels(config);
+
+    const points = [];
+
+    for (let x = -127; x <= 127; x++) {
+        points.push({
+            x: x,
+            y: expoTurnFunction(x, config)
+        });
+    }
+
+    chart.data.datasets[0].data = points;
+    chart.update();
+}
+
+Object.values(controls).forEach(control => {
+    control.addEventListener('input', redraw);
+});
+
+redraw();
+</script>
+
+</body>
+</html>
