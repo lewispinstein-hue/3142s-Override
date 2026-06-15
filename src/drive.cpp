@@ -74,15 +74,14 @@ double expoThrottle(double input, double expoThrottle, double deadband) {
 double expoTurn(double input, const ExpoTurnConfig& config) {
   const bool controlOverride =
     std::abs(controller.get_analog(ANALOG_RIGHT_X)) > config.joystickSpeedOverrideThreshold;
-  
-  const double speed = std::fabs(normVel(
-    (leftDrivetrain.get_actual_velocity() + rightDrivetrain.get_actual_velocity()) / 2
-  ));
 
-  const double turnMultiplier =
-    (speed > config.robotSpeedOverrideThreshold || controlOverride)
-      ? config.overrideSpeedMultiplier
-      : config.defaultSpeedMultiplier;
+  const double speed = 
+    std::fabs(normVel((leftDrivetrain.get_actual_velocity() +
+                            rightDrivetrain.get_actual_velocity()) / 2));
+
+  const double turnMultiplier = 
+    controlOverride ? config.overrideSpeedMultiplier
+                    : config.defaultSpeedMultiplier;
 
   double norm = input / 127.0;
   double linear = norm;
@@ -105,14 +104,14 @@ void updateDrive(const DriveConfig& config) {
   const float processedThrottle = slewLimit(
     expoThrottle(throttle, config.expoThrottle, config.deadband),
     prevThrottle,
-    MotionType::FORWARD, 
+    MotionType::FORWARD,
     config.slew
   );
 
   const float processedTurn = slewLimit(
     expoTurn(turn, config.expoTurnConfig),
     prevTurn,
-    MotionType::TURN, 
+    MotionType::TURN,
     config.slew
   );
 

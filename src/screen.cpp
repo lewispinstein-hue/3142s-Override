@@ -6,7 +6,7 @@ void Manager::clearScreen() {
   // Thread safety
   MutexGuard m(sharedMutex);
   if (!m.isLocked()) return; 
-  
+
   textLines.clear();
   pros::screen::erase_rect(0, 0, 480, 272);
   pros::screen::erase();
@@ -51,7 +51,7 @@ void Manager::drawBottomButtons(bool redraw) {
   // Thread safety
   MutexGuard m(sharedMutex);
   if (!m.isLocked()) return;
-  
+
   if (redraw) clearScreen();
 
   auto color = pros::screen::get_pen();

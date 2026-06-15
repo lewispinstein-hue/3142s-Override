@@ -12,7 +12,7 @@ namespace control {
 */
 struct Slew {
   /** @brief Slew applied when increasing magnitude/speed (in turning mode) */
-  float risingAngle; 
+  float risingAngle;
 
   /** @brief Slew applied when decreasing magnitude/speed (in turning mode) */
   float fallingAngle;
@@ -48,19 +48,17 @@ struct ExpoTurnConfig {
   float expoTurn = 1.9;
 
   int joystickSpeedOverrideThreshold = 126;
-  int robotSpeedOverrideThreshold = 100;
-  
+
   float defaultSpeedMultiplier = 90;
   float overrideSpeedMultiplier = 120;
-  
+
   ExpoTurnConfig(float expoTurn, int joystickSpeedOverrideThreshold,
-    int robotSpeedOverrideThreshold, float defaultSpeedMultiplier,
-    float overrideSpeedMultiplier)
-    : expoTurn(expoTurn),
-    joystickSpeedOverrideThreshold(joystickSpeedOverrideThreshold),
-    robotSpeedOverrideThreshold(robotSpeedOverrideThreshold),
-    defaultSpeedMultiplier(defaultSpeedMultiplier),
-    overrideSpeedMultiplier(overrideSpeedMultiplier) {}
+                 float defaultSpeedMultiplier,
+                 float overrideSpeedMultiplier)
+               :  expoTurn(expoTurn),
+                  joystickSpeedOverrideThreshold(joystickSpeedOverrideThreshold),
+                  defaultSpeedMultiplier(defaultSpeedMultiplier),
+                  overrideSpeedMultiplier(overrideSpeedMultiplier) {}
 };
 
 struct DriveConfig {

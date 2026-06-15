@@ -9,25 +9,30 @@
  * to keep execution time for this mode under a few seconds.
  */
 void initialize() {
-	leftDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
-	rightDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+  leftDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+  rightDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
 
-	auto& logger = mvlib::Logger::getInstance();
-	mvlib::setOdom(&chassis);
-	logger.setRobot({
-		.leftDrivetrain = &leftDrivetrain,
-		.rightDrivetrain = &rightDrivetrain
-	});
-	logger.setMinLogLevel(LogLevel::DEBUG);
-	logger.setLogToSD(false);
-	logger.setDefaultWatches({true, true, true});
-	logger.setLoggingLocation("/beta/run#1.log");
-	logger.start();
+  auto& logger = mvlib::Logger::getInstance();
+  mvlib::setOdom(&chassis);
+  logger.setRobot({
+    .leftDrivetrain = &leftDrivetrain,
+    .rightDrivetrain = &rightDrivetrain
+  });
+  logger.setMinLogLevel(LogLevel::DEBUG);
+  logger.setLogToSD(false);
+  logger.setDefaultWatches({true, true, true});
+  logger.setLoggingLocation("/beta/run#1.log");
 
-	logger.watch("Raw throttle", LogLevel::DEBUG, WatchMode::onInterval, 50_mvMs, 
-	[&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
-// 	logger.watch("Raw throttle", LogLevel::DEBUG, WatchMode::onInterval, 50_mvMs, 
-// 	[&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
+  chassis.calibrate();
+  chassis.setPose(0, 0, 0);
+  logger.start();
+
+  logger.watch("Throttle", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
+  [&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
+  logger.watch("Turn", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
+  [&]() { return controller.get_analog(ANALOG_RIGHT_X); } );
+
+  // logger.setPrintWatches(false);
 }
 
 /**
@@ -76,32 +81,33 @@ void autonomous() {}
  */
 
 control::Slew slew{
-	20,
-	0,
-	20,
-	0
+  20,
+  0,
+  20,
+  0
 };
 
 control::ExpoTurnConfig expoTurnConfig{
-	2.1,
-	0,
-	1000,
-	90,
-	120
+  4,
+  120,
+  100,
+  127
 };
 
 control::DriveConfig config{
-	.slew = slew,
-	.expoTurnConfig = expoTurnConfig,
-	.driveMode = control::DriveMode::ARCADE,
-	.expoThrottle = 1.8,
-	.deadband = 10,
-	.desaturateBias = 0.5
+  .slew = slew,
+  .expoTurnConfig = expoTurnConfig,
+  .driveMode = control::DriveMode::ARCADE,
+  .expoThrottle = 1.8,
+  .deadband = 10,
+  .desaturateBias = 0.5
 };
 
 void opcontrol() {
-	while (true) {
-		control::updateDrive(config);
-		pros::delay(20);
-	}
+  auto& logger = mvlib::Logger::getInstance();
+  logger.info("Opcontrol!");
+  while (true) {
+    control::updateDrive(config);
+    pros::delay(20);
+  }
 }

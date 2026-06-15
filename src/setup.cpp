@@ -22,7 +22,7 @@ pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 pros::Rotation horizontalOdom(18);
 pros::Rotation verticalOdom(8);
-pros::IMU imu(19);
+pros::IMU imu(17);
 
 
 lemlib::TrackingWheel verticalTrackingWheel(
@@ -34,11 +34,11 @@ lemlib::TrackingWheel verticalTrackingWheel(
 lemlib::TrackingWheel horizontalTrackingWheel(
   &horizontalOdom,
   lemlib::Omniwheel::NEW_2,
-  -0.5
+  2.15
 );
 
 lemlib::OdomSensors sensors(
-  &verticalTrackingWheel,
+  nullptr,
   nullptr,
   &horizontalTrackingWheel,
   nullptr,
@@ -55,7 +55,7 @@ lemlib::Drivetrain drivetrain(
   &rightDrivetrain,
   trackWidth,
   lemlib::Omniwheel::OLD_325,
-  360,
+  350,
   2
 );
 
