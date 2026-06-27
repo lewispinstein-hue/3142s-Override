@@ -2,7 +2,7 @@
 
 // MotorGroups are {front, middle, back}
 pros::MotorGroup leftDrivetrain(
-  {-8, -20, -21},
+  {-8, -15, -21},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );
@@ -15,9 +15,9 @@ pros::MotorGroup rightDrivetrain(
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-// pros::MotorGroup liftMech({9, 10});
+pros::MotorGroup dr4bMech({-11, -20});
 
-// pros::Motor claw(11);
+// pros::adi::Pneumatics claw(11);
 // pros::Motor clawPitch(12);
 
 pros::Rotation horizontalOdom(18);

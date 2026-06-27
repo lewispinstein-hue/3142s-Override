@@ -12,6 +12,7 @@ void initialize() {
   leftDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
   rightDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
 
+  dr4bMech.tare_position_all(); // Dr4b MUST be lowered completely before starting
   auto& logger = mvlib::Logger::getInstance();
   mvlib::setOdom(&chassis);
   logger.setRobot({
@@ -27,11 +28,25 @@ void initialize() {
   chassis.setPose(0, 0, 0);
   logger.start();
 
-  logger.watch("Throttle", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
-  [&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
-  logger.watch("Turn", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
-  [&]() { return controller.get_analog(ANALOG_RIGHT_X); } );
+  // logger.watch("Throttle", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
+  // [&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
+  // logger.watch("Turn", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
+  // [&]() { return controller.get_analog(ANALOG_RIGHT_X); } );
 
+  logger.watch("Battery %", LogLevel::INFO, WatchMode::onInterval, 2_mvS, 
+  [&]() { return pros::c::battery_get_capacity(); }, "%.1f");
+  logger.watch("Right DR4B Temp", LogLevel::INFO, WatchMode::onInterval, 5_mvS, 
+  [&]() { return dr4bMech.get_temperature(0); }, "%.1f",
+  mvlib::LevelOverride<double>{
+    .elevatedLevel = LogLevel::WARN,
+    .predicate = PREDICATE(v > 45)
+  });
+  logger.watch("Left DR4B Temp", LogLevel::INFO, WatchMode::onInterval, 5_mvS, 
+  [&]() { return dr4bMech.get_temperature(1); }, "%.1f", 
+  mvlib::LevelOverride<double>{
+    .elevatedLevel = LogLevel::WARN,
+    .predicate = PREDICATE(v > 45)
+  });
   // logger.setPrintWatches(false);
 }
 
@@ -82,9 +97,9 @@ void autonomous() {}
 
 control::Slew slew{
   20,
-  0,
   20,
-  0
+  20,
+  20
 };
 
 control::ExpoTurnConfig expoTurnConfig{
@@ -107,7 +122,9 @@ void opcontrol() {
   auto& logger = mvlib::Logger::getInstance();
   logger.info("Opcontrol!");
   while (true) {
+    dr4bHandle();
     control::updateDrive(config);
-    pros::delay(20);
+    
+    pros::delay(10);
   }
 }

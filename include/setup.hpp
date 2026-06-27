@@ -2,6 +2,7 @@
 
 #include "main.h"
 #include "drive.hpp"
+#include "pros/adi.hpp"
 #include "screen.hpp"
 #include "lemlib/api.hpp"
 
@@ -21,7 +22,9 @@ extern lemlib::Chassis chassis;
 
 extern pros::Controller controller;
 
-extern pros::MotorGroup liftMech;
+extern pros::MotorGroup dr4bMech;
 
-extern pros::Motor claw;
+extern pros::adi::Pneumatics claw;
 extern pros::Motor clawPitch;
+
+void dr4bHandle();
