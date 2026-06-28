@@ -2,13 +2,13 @@
 
 // MotorGroups are {front, middle, back}
 pros::MotorGroup leftDrivetrain(
-  {-10, -17, -21},
+  {-10, -17, -9},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );
 
 pros::MotorGroup rightDrivetrain(
-  {12, 9, 20},
+  {8, 12, 20},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );

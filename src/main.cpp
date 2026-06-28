@@ -2,6 +2,22 @@
 #include "pros/motors.h"
 #include "setup.hpp"
 
+void initializeDr4bDebug() {
+  mvlib::Logger& logger = mvlib::Logger::getInstance();
+  logger.watch("DR4B Temp", LogLevel::INFO, WatchMode::onInterval, 5_mvS, 
+  [&]() { return (dr4bMech.get_temperature(0) + dr4bMech.get_temperature(1)) / 2; },
+  mvlib::LevelOverride<double>{
+    .elevatedLevel = LogLevel::WARN,
+    .predicate = PREDICATE(v > 45)
+  });
+
+  logger.watch("DR4B Watts", LogLevel::INFO, WatchMode::onInterval, 250_mvMs, 
+  [&]() { return (dr4bMech.get_power(0) + dr4bMech.get_power(1)) / 2; });
+
+  logger.watch("DR4B height", LogLevel::INFO, WatchMode::onInterval, 250_mvMs,
+  [&]() { return (dr4bMech.get_position(0) + dr4bMech.get_position(1)) / 2; });
+}
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -35,21 +51,7 @@ void initialize() {
 
   // logger.watch("Battery %", LogLevel::INFO, WatchMode::onInterval, 2_mvS, 
   // [&]() { return pros::c::battery_get_capacity(); }, "%.1f");
-  logger.watch("Right DR4B Temp", LogLevel::INFO, WatchMode::onInterval, 5_mvS, 
-  [&]() { return dr4bMech.get_temperature(0); }, "%.1f",
-  mvlib::LevelOverride<double>{
-    .elevatedLevel = LogLevel::WARN,
-    .predicate = PREDICATE(v > 45)
-  });
-  logger.watch("Left DR4B Temp", LogLevel::INFO, WatchMode::onInterval, 5_mvS, 
-  [&]() { return dr4bMech.get_temperature(1); }, "%.1f", 
-  mvlib::LevelOverride<double>{
-    .elevatedLevel = LogLevel::WARN,
-    .predicate = PREDICATE(v > 45)
-  });
 
-  logger.watch("DR4B height", LogLevel::INFO, WatchMode::onInterval, 250_mvMs,
-  [&]() { return (dr4bMech.get_position(0) + dr4bMech.get_position(1) / 2); });
   // logger.setPrintWatches(false);
 }
 
