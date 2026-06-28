@@ -29,7 +29,7 @@ bool getMotorStalled(pros::MotorGroup* motor, uint32_t mvThreshold = 2500,
 void dr4bHandle() {
   static auto& logger = mvlib::Logger::getInstance();
   if (!controller.get_digital(DIGITAL_R1)) {
-    dr4bMech.move_absolute(dr4bLastPosition, 90);
+    // dr4bMech.move_absolute(dr4bLastPosition, 90);
     dr4bLastStallTime = 0;
     return;
   }
@@ -50,11 +50,12 @@ void dr4bHandle() {
 
   bool dr4bStalled = false;
   for (uint8_t i = 0; i < dr4bMech.size(); i++) {
-    if (getMotorStalled(&dr4bMech, 2500, 5, i)) {
+    if (getMotorStalled(&dr4bMech, 2000, 5, i)) {
       dr4bStalled = true;
       break;
     }
   }
+
 
   if (dr4bStalled) {
     logger.info("Dr4b Stalled");

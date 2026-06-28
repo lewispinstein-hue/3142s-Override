@@ -6,6 +6,7 @@
 *.bin
 *.elf
 
+**.DS_Store
 # PROS
 bin/
 .vscode/

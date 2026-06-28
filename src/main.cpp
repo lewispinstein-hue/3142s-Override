@@ -33,8 +33,8 @@ void initialize() {
   // logger.watch("Turn", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
   // [&]() { return controller.get_analog(ANALOG_RIGHT_X); } );
 
-  logger.watch("Battery %", LogLevel::INFO, WatchMode::onInterval, 2_mvS, 
-  [&]() { return pros::c::battery_get_capacity(); }, "%.1f");
+  // logger.watch("Battery %", LogLevel::INFO, WatchMode::onInterval, 2_mvS, 
+  // [&]() { return pros::c::battery_get_capacity(); }, "%.1f");
   logger.watch("Right DR4B Temp", LogLevel::INFO, WatchMode::onInterval, 5_mvS, 
   [&]() { return dr4bMech.get_temperature(0); }, "%.1f",
   mvlib::LevelOverride<double>{
@@ -47,6 +47,9 @@ void initialize() {
     .elevatedLevel = LogLevel::WARN,
     .predicate = PREDICATE(v > 45)
   });
+
+  logger.watch("DR4B height", LogLevel::INFO, WatchMode::onInterval, 250_mvMs,
+  [&]() { return (dr4bMech.get_position(0) + dr4bMech.get_position(1) / 2); });
   // logger.setPrintWatches(false);
 }
 
@@ -124,7 +127,9 @@ void opcontrol() {
   while (true) {
     dr4bHandle();
     control::updateDrive(config);
-    
+    if (controller.get_digital(DIGITAL_L1)) {
+      logger.info("L1"); 
+    }
     pros::delay(10);
   }
 }

@@ -2,27 +2,28 @@
 
 // MotorGroups are {front, middle, back}
 pros::MotorGroup leftDrivetrain(
-  {-8, -15, -21},
+  {-10, -17, -21},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );
 
 pros::MotorGroup rightDrivetrain(
-  {12, 16, 1},
+  {12, 9, 20},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup dr4bMech({-11, -20});
+// {right, left}
+pros::MotorGroup dr4bMech({-11, -2});
 
 // pros::adi::Pneumatics claw(11);
 // pros::Motor clawPitch(12);
 
-pros::Rotation horizontalOdom(18);
+pros::Rotation horizontalOdom(19);
 pros::Rotation verticalOdom(8);
-pros::IMU imu(17);
+pros::IMU imu(18);
 
 
 lemlib::TrackingWheel verticalTrackingWheel(
