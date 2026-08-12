@@ -75,10 +75,6 @@ double expoTurn(double input, const ExpoTurnConfig& config) {
   const bool controlOverride =
     std::abs(controller.get_analog(ANALOG_RIGHT_X)) > config.joystickSpeedOverrideThreshold;
 
-  const double speed = 
-    std::fabs(normVel((leftDrivetrain.get_actual_velocity() +
-                            rightDrivetrain.get_actual_velocity()) / 2));
-
   const double turnMultiplier = 
     controlOverride ? config.overrideSpeedMultiplier
                     : config.defaultSpeedMultiplier;

@@ -1,5 +1,3 @@
-#include "drive.hpp"
-#include "pros/motors.h"
 #include "setup.hpp"
 
 void initializeDr4bDebug() {
@@ -12,7 +10,7 @@ void initializeDr4bDebug() {
   });
 
   logger.watch("DR4B Watts", LogLevel::INFO, WatchMode::onInterval, 250_mvMs, 
-  [&]() { return (dr4bMech.get_power(0) + dr4bMech.get_power(1)) / 2; });
+  [&]() { return dr4bMech.get_power(0) + dr4bMech.get_power(1); });
 
   logger.watch("DR4B height", LogLevel::INFO, WatchMode::onInterval, 250_mvMs,
   [&]() { return (dr4bMech.get_position(0) + dr4bMech.get_position(1)) / 2; });
@@ -36,14 +34,15 @@ void initialize() {
     .rightDrivetrain = &rightDrivetrain
   });
   logger.setMinLogLevel(LogLevel::DEBUG);
-  logger.setLogToSD(false);
-  logger.setDefaultWatches({true, true, true});
-  logger.setLoggingLocation("/beta/run#1.log");
+  // logger.setDefaultWatches({true, true, true});
+  initializeDr4bDebug();
+  logger.setLoggingLocation("/beta/run#1.log", MissingFolderPolicy::useRoot);
 
   chassis.calibrate();
   chassis.setPose(0, 0, 0);
   logger.start();
 
+  logger.info("Posisiton: %.2f %.2f %.2f", chassis.getPose().x, chassis.getPose().y, chassis.getPose().theta);
   // logger.watch("Throttle", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
   // [&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
   // logger.watch("Turn", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
@@ -52,8 +51,16 @@ void initialize() {
   // logger.watch("Battery %", LogLevel::INFO, WatchMode::onInterval, 2_mvS, 
   // [&]() { return pros::c::battery_get_capacity(); }, "%.1f");
 
+  logger.addWaypoint("Test 1", {
+    .tarX = 0,
+    .tarY = 5,
+    .timeoutMs = 5000,
+    .linearTol = 2,
+    .retriggerable = true
+  });
   // logger.setPrintWatches(false);
 }
+
 
 /**
  * Runs while the robot is in the disabled state of Field Management System or

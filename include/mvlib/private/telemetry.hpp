@@ -43,10 +43,10 @@ int8_t packTelemetryVelocity(double velocity);
 // Optimized Packets
 struct __attribute__((packed)) PosePacket {
   uint16_t timestamp;
-  float x; 
+  float x;
   float y;
   uint16_t theta;
-  int8_t leftVel; 
+  int8_t leftVel;
   int8_t rightVel;
 };
 
@@ -57,6 +57,7 @@ struct __attribute__((packed)) WaypointCreatedPacket {
   uint16_t tarT;
   float linTol, thetaTol;
   uint32_t timeout;
+  uint8_t retriggerable;
 };
 
 struct __attribute__((packed)) WaypointStatusPacket {
@@ -85,7 +86,7 @@ struct __attribute__((packed)) LogPacketHeader {
 };
 
 static_assert(sizeof(PosePacket) == 14, "PosePacket layout changed");
-static_assert(sizeof(WaypointCreatedPacket) == 26, "WaypointCreatedPacket layout changed");
+static_assert(sizeof(WaypointCreatedPacket) == 27, "WaypointCreatedPacket layout changed");
 static_assert(sizeof(WaypointStatusPacket) == 4, "WaypointStatusPacket layout changed");
 static_assert(sizeof(WatchPacket) == 8, "WatchPacket layout changed");
 static_assert(sizeof(WatchTextPacketHeader) == 4, "WatchTextPacketHeader layout changed");

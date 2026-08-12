@@ -21,7 +21,7 @@ pros::MotorGroup dr4bMech({-11, -2});
 // pros::adi::Pneumatics claw(11);
 // pros::Motor clawPitch(12);
 
-pros::Rotation horizontalOdom(19);
+pros::Rotation horizontalOdom(7);
 pros::Rotation verticalOdom(8);
 pros::IMU imu(18);
 
@@ -41,7 +41,7 @@ lemlib::TrackingWheel horizontalTrackingWheel(
 lemlib::OdomSensors sensors(
   nullptr,
   nullptr,
-  &horizontalTrackingWheel,
+  nullptr,
   nullptr,
   &imu
 );
