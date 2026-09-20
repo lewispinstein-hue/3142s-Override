@@ -35,14 +35,13 @@ void initialize() {
   });
   logger.setMinLogLevel(LogLevel::DEBUG);
   // logger.setDefaultWatches({true, true, true});
-  initializeDr4bDebug();
+  // initializeDr4bDebug();
   logger.setLoggingLocation("/beta/run#1.log", MissingFolderPolicy::useRoot);
 
   chassis.calibrate();
   chassis.setPose(0, 0, 0);
   logger.start();
 
-  logger.info("Posisiton: %.2f %.2f %.2f", chassis.getPose().x, chassis.getPose().y, chassis.getPose().theta);
   // logger.watch("Throttle", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
   // [&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
   // logger.watch("Turn", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
@@ -57,6 +56,12 @@ void initialize() {
     .timeoutMs = 5000,
     .linearTol = 2,
     .retriggerable = true
+  });
+
+  logger.watch("Robot in/s", LogLevel::INFO, WatchMode::onInterval, 75_mvMs, 
+  [&]() { 
+    const double avgVelocity = (leftDrivetrain.get_actual_velocity() + rightDrivetrain.get_actual_velocity()) / 2;
+    return (3.25 * M_PI / 60.0) * (36.0/60.0 * avgVelocity);
   });
   // logger.setPrintWatches(false);
 }

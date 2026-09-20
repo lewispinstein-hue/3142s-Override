@@ -8,7 +8,7 @@ pros::MotorGroup leftDrivetrain(
 );
 
 pros::MotorGroup rightDrivetrain(
-  {8, 12, 20},
+  {8, 15, 20},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );
@@ -16,7 +16,7 @@ pros::MotorGroup rightDrivetrain(
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // {right, left}
-pros::MotorGroup dr4bMech({-11, -2});
+pros::MotorGroup dr4bMech({-4, -5});
 
 // pros::adi::Pneumatics claw(11);
 // pros::Motor clawPitch(12);
