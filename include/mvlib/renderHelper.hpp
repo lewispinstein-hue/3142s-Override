@@ -34,6 +34,10 @@ static std::string renderValue(bool v) {
   return v ? "t" : "f";
 }
 
+/**
+ * @brief Render a T pointer address as a decimal string.
+ * \return The rendered decimal string.
+ */
 template <class T>
 static std::string renderValue(const T* v) {
   return v ? std::to_string((uintptr_t)v) : std::string("(null)");

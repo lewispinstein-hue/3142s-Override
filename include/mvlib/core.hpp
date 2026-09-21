@@ -50,6 +50,10 @@
 #define MVLIB_VERSION 300000 // 3.0.0
 
 namespace mvlib {
+namespace detail {
+class SdSink;
+}
+
 /**
  * @class Logger
  * @brief Singleton logging + telemetry manager.
@@ -87,6 +91,14 @@ public:
    * \return Reference to the global Logger instance.
    */
   [[nodiscard]] static Logger& getInstance();
+
+  ~Logger();
+
+  /// @brief Backward-compatible spelling for the SD missing-folder policy.
+  using MissingFolderPolicy = mvlib::MissingFolderPolicy;
+
+  /// @brief Backward-compatible spelling for the SD existing-file policy.
+  using ExistingFilePolicy = mvlib::ExistingFilePolicy;
 
   // ------------------------------------------------------------------------
   // Lifecycle
@@ -137,7 +149,8 @@ public:
   /**
    * @brief Enable/disable Pose/Telemetry printing.
    *
-   * @note If false, MotionView will only update with watches.
+   * @note If false, MotionView stops receiving periodic pose/drivetrain telemetry.
+   *       Watches, logs, and waypoint events continue independently.
    */
   void setPrintTelemetry(bool v);
 
@@ -147,7 +160,9 @@ public:
   void setPrintWatches(bool v);
 
   /**
-   * @brief Enable/disable printing of waypoints.
+   * @brief Enable/disable waypoint event output.
+   *
+   * @note Waypoint reach and timeout evaluation continues while output is disabled.
    */
   void setPrintWaypoints(bool v);
 
@@ -159,7 +174,10 @@ public:
   void setLogSystemInfo(bool v);
 
   /**
-   * @brief Set the runtime configuration for Logger output and update loops.
+   * @brief Update Logger output and update-loop timings.
+   *
+   * @note Timing fields are applied independently and are safe to update while
+   *       the logger task is running.
    */
   void setTimings(LoggerTimings timings);
 
@@ -173,8 +191,8 @@ public:
    * @brief Provide the consumer project build date for RTC validation.
    *
    * @param buildDate Date string in the compiler __DATE__ format
-   *                  ("Mmm dd yyyy"). If omitted, this defaults to the
-   *                  consumer translation unit's build date.
+   *                  ("Mmm dd yyyy"). If omitted, MVLib uses the date baked
+   *                  into its own archive.
    *
    * @note Call before start() if SD filename generation should validate
    *       the VEX RTC against the consumer project build date instead of
@@ -233,36 +251,6 @@ public:
   bool setRobot(Drivetrain drivetrain, bool useSpeedEstimation = false);
 
   /**
-   * @enum MissingFolderPolicy
-   * @brief Policy used when the requested SD logging folder does not exist.
-   */
-  enum class MissingFolderPolicy : uint8_t {
-    /// @brief Disable SD logging immediately and return failure.
-    disable = 0,
-
-    /// @brief Fall back to the SD root directory (`/usd/`) and continue file resolution there.
-    useRoot
-  };
-
-  /**
-   * @enum ExistingFilePolicy
-   * @brief Policy used when an explicit SD logging file already exists.
-   *
-   * @note This policy is only consulted after folder resolution has completed.
-   */
-  enum class ExistingFilePolicy : uint8_t {
-    /// @brief Disable SD logging immediately and return failure.
-    disable = 0,
-
-    /// @brief Reuse the explicit path and overwrite the existing file.
-    overwrite,
-
-    /// @brief Preserve the existing file and instead generate a new timestamped
-    ///        filename in the resolved folder.
-    automatic
-  };
-
-  /**
    * @brief Sets the SD logging destination as either a folder or a specific file path.
    *
    * @param location      Absolute SD-relative folder or file path
@@ -284,7 +272,8 @@ public:
    * @note If filePolicy is automatic, MVLib clears the explicit filename and later
    *       generates a timestamped filename in the resolved folder during initialization.
    *
-   * \return true if the folder exists and the destination was accepted, false otherwise.
+   * \return true if the destination was accepted, including a root fallback,
+   *         false otherwise.
    *
    * \b Examples
    * @code
@@ -302,7 +291,7 @@ public:
    * @endcode
    */
   bool setLoggingLocation(const char *location,
-                          MissingFolderPolicy folderPolicy = MissingFolderPolicy::disable,
+                          MissingFolderPolicy folderPolicy = MissingFolderPolicy::useRoot,
                           ExistingFilePolicy filePolicy = ExistingFilePolicy::automatic);
 
   // ------------------------------------------------------------------------
@@ -318,8 +307,9 @@ public:
    * @param fmt printf-style format string.
    * @param ... Format arguments.
    *
-   * @note Messages are truncated to 512 bytes.
-   * @note These are affected by minLoggerLevel.
+   * @note Messages are formatted into a 1024-byte buffer. Live terminal output
+   *       is truncated to 511 text bytes; SD output can contain up to 1023 bytes.
+   * @note These are affected by setMinLogLevel().
    *
    * \b Example
    * @code
@@ -417,9 +407,10 @@ public:
 
   /**
    * @struct DefaultWatches
-   * @brief Built-in watchdog watches that stay silent while normal and periodically log when tripped.
+   * @brief Built-in watchdog watches that stay silent while normal and repeat a
+   *        stable tripped state every five seconds.
    *
-   * @note These are affected by minLoggerLevel.
+   * @note These are affected by setMinLogLevel().
    *
    * @note Drivetrain watches will fail if setRobot has not been set, or if the
    *       drivetrain pointers are invalid.
@@ -431,7 +422,7 @@ public:
     /// @brief Watch right drivetrain temperature. Warns above 50 C.
     bool rightDrivetrainWatchdog = true;
 
-    /// @brief Watch battery temperature and voltage. Warns above 45 C or outside 12000-13250 mV.
+    /// @brief Watch battery temperature and voltage. Warns above 45 C or outside 11700-13250 mV.
     bool batteryWatchdog = true;
   };
 
@@ -475,6 +466,9 @@ public:
    * @note String literal labels longer than 24 characters are rejected at
    *       compile time. Live MotionView roster packets preserve 23 visible
    *       characters because the telemetry label field is null-terminated.
+   * @note When terminal watch output is enabled, MVLib sends the watch roster
+   *       label immediately after registration so its first emitted sample can
+   *       be resolved by MotionView.
    * @note Adding a watch is computationally expensive. Don't call logger.watch()
    *       repeatedly. Additionally, if the same .watch() is called
    *       multiple times, each watch will be separate and logged independently.
@@ -526,11 +520,8 @@ private:
   /// @brief Validate that the logger configuration is valid.
   bool configValid() const;
 
-  /// @brief Initialize SD logger file handle and state.
+  /// @brief Initialize the owned SD sink.
   bool initSDLogger();
-
-  /// @brief Return the current sessions filename.
-  void getTimestampedFilename(char* buffer, size_t len);
 
   /**
    * @brief Convert a LogLevel to a printable string.
@@ -568,6 +559,12 @@ private:
     /// @brief Last emitted rendered value (for onChange).
     std::optional<std::string> lastValue = std::nullopt;
 
+    /// @brief Suppress normal-state output while still tracking its value.
+    bool suppressNormalOutput = false;
+
+    /// @brief Repeat a stable tripped on-change sample at this interval; zero disables repeats.
+    uint32_t trippedRepeatIntervalMs = 0;
+
     /// @brief Computes (level, rendered eval string, label, predicate) for the current sample.
     std::shared_ptr<std::function<std::tuple<LogLevel, std::string, std::string, bool>()>> eval;
 
@@ -589,6 +586,9 @@ private:
 
   /// @brief Re-send the roster entry for a single watch.
   bool resyncWatchRoster(WatchId id);
+
+  /// @brief Configure the output policy used by built-in watchdog watches.
+  void configureDefaultWatch(WatchId id, uint32_t trippedRepeatIntervalMs);
 
   /// @brief Find a watch without taking m_mutex.
   InternalWatch* m_findWatchUnlocked(WatchId id);
@@ -616,48 +616,56 @@ private:
                    const uint32_t intervalMs, Getter&& getter,
                    LevelOverride<T> ov,
                    bool onChange = false) {
-    detail::uniqueLock lock(m_mutex);
-    if (!lock.isLocked()) return static_cast<WatchId>(-1);
+    WatchId id{};
+    {
+      detail::uniqueLock lock(m_mutex);
+      if (!lock.isLocked()) return static_cast<WatchId>(-1);
 
-    using EvalType = T;
+      using EvalType = T;
 
-    InternalWatch w;
-    w.id = m_nextId++;
-    w.label = std::move(label);
-    w.elevatedLabel = ov.label;
-    w.baseLevel = baseLevel;
-    w.intervalMs = intervalMs;
-    w.onChange = onChange;
+      InternalWatch w;
+      w.id = m_nextId++;
+      w.label = std::move(label);
+      w.elevatedLabel = ov.label;
+      w.baseLevel = baseLevel;
+      w.intervalMs = intervalMs;
+      w.onChange = onChange;
 
-    std::decay_t<Getter> eval = std::forward<Getter>(getter); // store callable by value
+      std::decay_t<Getter> eval = std::forward<Getter>(getter); // store callable by value
 
-    // Capture label by value (not by reference to w), and move ov in.
-    const std::string labelCopy = w.label;
+      // Capture label by value (not by reference to w), and move ov in.
+      const std::string labelCopy = w.label;
 
-    // When w.eval is called, it returns final log level, getter eval, final label
-    w.eval = std::make_shared<std::function<std::tuple<LogLevel, std::string, std::string, bool>()>>(
-              [baseLevel, labelCopy, eval = std::move(eval),
-              ov = std::move(ov)]() mutable ->
-              std::tuple<LogLevel, std::string, std::string, bool> {
+      // When w.eval is called, it returns final log level, getter eval, final label
+      w.eval = std::make_shared<std::function<std::tuple<LogLevel, std::string, std::string, bool>()>>(
+                [baseLevel, labelCopy, eval = std::move(eval),
+                ov = std::move(ov)]() mutable ->
+                std::tuple<LogLevel, std::string, std::string, bool> {
 
-      EvalType evalValue = static_cast<EvalType>(eval());
+        EvalType evalValue = static_cast<EvalType>(eval());
 
-      const bool tripped = (ov.predicate && ov.predicate(evalValue));
+        const bool tripped = (ov.predicate && ov.predicate(evalValue));
 
-      // Log level based on predicate
-      const LogLevel lvl = tripped ? ov.elevatedLevel : baseLevel;
+        // Log level based on predicate
+        const LogLevel lvl = tripped ? ov.elevatedLevel : baseLevel;
 
-      std::string rawOut = renderValue(evalValue); // Raw eval of getter
+        std::string rawOut = renderValue(evalValue); // Raw eval of getter
 
-      // Get label based on predicate
-      const std::string& displayOut = (tripped && !ov.label.empty()) ? ov.label : labelCopy;
+        // Get label based on predicate
+        const std::string& displayOut = (tripped && !ov.label.empty()) ? ov.label : labelCopy;
 
-      return std::make_tuple(lvl, std::move(rawOut), std::move(displayOut), tripped);
-    });
-    w.evalMutex = std::make_shared<pros::Mutex>();
+        return std::make_tuple(lvl, std::move(rawOut), std::move(displayOut), tripped);
+      });
+      w.evalMutex = std::make_shared<pros::Mutex>();
 
-    m_watches.push_back(std::move(w));
-    return w.id;
+      id = w.id;
+      m_watches.push_back(std::move(w));
+    }
+
+    if (m_config.printWatches.load() && m_config.logToTerminal.load()) {
+      resyncWatchRoster(id);
+    }
+    return id;
   }
 
   /// @brief Print all watches that are due (and/or changed).
@@ -684,6 +692,9 @@ private:
 
     /// @brief Is the waypoint active (not yet reached or timed out)?
     bool active = true;
+
+    /// @brief Whether waypoint event output was enabled at registration.
+    bool createdWithOutputEnabled = true;
 
     /// @brief Latched true after this waypoint has ever been reached.
     bool reached = false;
@@ -718,6 +729,9 @@ private:
   /// @brief Print all waypoints that are due
   void printWaypoints();
 
+  /// @brief Write a waypoint creation record to the active SD log.
+  void logWaypointCreatedToSD(const InternalWaypoint& waypoint);
+
   /// @brief Print pose data
   void printTelemetry();
 
@@ -738,22 +752,22 @@ private:
   // ------------------------------------------------------------------------
 
   LoggerConfig m_config{};
-  LoggerTimings m_timings{};
 
-  pros::Mutex m_sdMutex;
   pros::Mutex m_mutex;
 
-  uint32_t m_lastFileFlush{0};
-  FILE* m_sdFile = nullptr;
-  char m_currentFilename[128] = "";
-  char m_absoluteFilename[133] = "";
   char m_userBuildDate[12] = "";
-  char m_loggingFolder[24] = "";
 
-  volatile bool m_sdLocked = false; // Has sd card failed?
-  bool m_started = false; // Has start() been called?
+  std::unique_ptr<detail::SdSink> m_sdSink;
+  std::atomic<bool> m_started{false}; // Has start() been called?
   std::atomic<bool> m_configSet{false}; // Has setRobot() been called?
   bool m_forceSpeedEstimation = false;
+
+  // Timings may be updated while the logger task is running.
+  std::atomic<uint32_t> m_sdBufferFlushInterval{1000};
+  std::atomic<uint32_t> m_stdoutBufferFlushInterval{400};
+  std::atomic<uint32_t> m_sdPollingRate{80};
+  std::atomic<uint32_t> m_terminalPollingRate{100};
+  std::atomic<uint32_t> m_rosterSyncAllInterval{8000};
 
   std::atomic<bool> m_pauseRequested{false};
 
@@ -767,7 +781,7 @@ private:
   std::shared_ptr<std::function<std::optional<Pose>()>> m_getPose = nullptr;
   std::shared_ptr<pros::Mutex> m_poseGetterMutex = nullptr;
 
-  uint32_t m_lastRosterFlush{0};
+  std::atomic<uint32_t> m_lastRosterFlush{0};
   uint32_t m_lastTerminalFlush{0};
   uint32_t m_lastTelemetryPrint{0};
 

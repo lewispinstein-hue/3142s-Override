@@ -51,7 +51,7 @@ void Logger::printTelemetry() {
     !configValid() || m_forceSpeedEstimation;
 
   if (!useSpeedEstimation) {
-    static auto norm = [&](const double& rpm, const pros::MotorGears& gearset) {
+    static auto norm = [&](const double& rpm, pros::MotorGears gearset) {
       double maxRpm = 100.0;
       if (gearset == pros::MotorGears::rpm_200) maxRpm = 200.0;
       else if (gearset == pros::MotorGears::rpm_600) maxRpm = 600.0;
@@ -83,8 +83,8 @@ void Logger::printTelemetry() {
     detail::Telemetry::getInstance().sendPose(pkt);
   }
 
-  // Log standard ANSII to the sd card
-  if (m_config.logToSD.load() && !m_sdLocked && m_sdFile) {
+  // Log standard ANSI text to the SD card.
+  if (m_config.logToSD.load()) {
     const double normTheta = [pose]() {
       double theta = fmod(pose.value().theta, 360.0);
       if (theta < 0.0) theta += 360.0;

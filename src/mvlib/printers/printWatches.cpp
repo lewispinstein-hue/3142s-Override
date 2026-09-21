@@ -47,9 +47,19 @@ void Logger::printWatches() {
       if (!watch || !watch->active) continue;
 
       if (watch->onChange) {
-        if (watch->lastValue.has_value() && watch->lastValue.value() == valueStr) {
+        const bool valueChanged = !watch->lastValue.has_value() ||
+                                  watch->lastValue.value() != valueStr;
+        const bool repeatTripped = !valueChanged && tripped &&
+            watch->trippedRepeatIntervalMs != 0 &&
+            nowMs - watch->lastPrintMs >= watch->trippedRepeatIntervalMs;
+
+        if (!valueChanged && !repeatTripped) {
           continue;
-        } else if (watch->lastPrintMs != 0 && (nowMs - watch->lastPrintMs) < watch->intervalMs) {
+        } else if (valueChanged && !tripped && watch->suppressNormalOutput) {
+          watch->lastValue = valueStr;
+          continue;
+        } else if (valueChanged && watch->lastPrintMs != 0 &&
+                   (nowMs - watch->lastPrintMs) < watch->intervalMs) {
           continue;
         } else {
           watch->lastValue = valueStr;
@@ -85,8 +95,8 @@ void Logger::printWatches() {
       }
     }
 
-    // Log standard ANSII to the sd card
-    if (m_config.logToSD.load() && !m_sdLocked && m_sdFile) {
+    // Log standard ANSI text to the SD card.
+    if (m_config.logToSD.load()) {
       // Uncompress t/f to true/false
       if (valueStr == "f") valueStr = "false";
       if (valueStr == "t") valueStr = "true";

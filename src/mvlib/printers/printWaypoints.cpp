@@ -88,14 +88,15 @@ void Logger::printWaypoints() {
     }
 
     if (!shouldTrigger) continue;
+    if (!m_config.printWaypoints.load()) continue;
 
     // Send binary through terminal
     if (m_config.logToTerminal.load()) {
       detail::Telemetry::getInstance().sendWaypointStatus(wp.id, subType);
     }
 
-    // Log standard ANSII to the sd card
-    if (m_config.logToSD.load() && !m_sdLocked && m_sdFile) {
+    // Log standard ANSI text to the SD card.
+    if (m_config.logToSD.load()) {
       logToSD(LogLevel::OVERRIDE, "[WPOINT],%u,%s,%u,%s",
               nowMs, statusStr ? statusStr : "", wp.id, wp.name.c_str());
     }
