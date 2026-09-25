@@ -1,8 +1,6 @@
 #pragma once
 
 #include "main.h"
-#include "lemlib/api.hpp"
-#include "setup.hpp"
 
 namespace control {
 /**
@@ -44,6 +42,19 @@ enum class DriveMode {
   CURVATURE
 };
 
+struct Drivetrain {
+  pros::MotorGroup* leftDrivetrain;
+  pros::MotorGroup* rightDrivetrain;
+  pros::Controller* master;
+
+  Drivetrain(pros::MotorGroup* leftDrivetrain, 
+             pros::MotorGroup* rightDrivetrain,
+             pros::Controller* master)
+           :  leftDrivetrain(leftDrivetrain),
+              rightDrivetrain(rightDrivetrain),
+              master(master) {}
+};
+
 struct ExpoTurnConfig {
   float expoTurn = 1.9;
 
@@ -65,6 +76,7 @@ struct DriveConfig {
   Slew slew;
   ExpoTurnConfig expoTurnConfig;
   DriveMode driveMode;
+  Drivetrain& drivetrain;
   float expoThrottle;
   float deadband;
   float desaturateBias;
@@ -82,7 +94,7 @@ struct DriveConfig {
 */
 double slewLimit(double target, float& prev, MotionType type, const Slew& slew);
 
-double expoTurn(double input, const ExpoTurnConfig& config);
+double expoTurn(double input, const ExpoTurnConfig& config, const Drivetrain& dt);
 double expoThrottle(double input, double expoThrottle, double deadband);
 
 struct Velocities {

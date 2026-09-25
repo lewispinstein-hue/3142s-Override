@@ -1,5 +1,4 @@
-#include "drive.hpp"
-#include "setup.hpp"
+#include "./../include/drive.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -71,9 +70,9 @@ double expoThrottle(double input, double expoThrottle, double deadband) {
   return curved * 127.0;
 }
 
-double expoTurn(double input, const ExpoTurnConfig& config) {
+double expoTurn(double input, const ExpoTurnConfig& config, const Drivetrain& dt) {
   const bool controlOverride =
-    std::abs(controller.get_analog(ANALOG_RIGHT_X)) > config.joystickSpeedOverrideThreshold;
+    std::abs(dt.master->get_analog(ANALOG_RIGHT_X)) > config.joystickSpeedOverrideThreshold;
 
   const double turnMultiplier = 
     controlOverride ? config.overrideSpeedMultiplier
@@ -88,8 +87,8 @@ double expoTurn(double input, const ExpoTurnConfig& config) {
 }
 
 void updateDrive(const DriveConfig& config) {
-  int throttle = controller.get_analog(ANALOG_LEFT_Y);
-  int turn = controller.get_analog(ANALOG_RIGHT_X);
+  int throttle = config.drivetrain.master->get_analog(ANALOG_LEFT_Y);
+  int turn = config.drivetrain.master->get_analog(ANALOG_RIGHT_X);
 
   if (abs(throttle) < config.deadband) throttle = 0;
   if (abs(turn) < config.deadband) turn = 0;
@@ -105,7 +104,7 @@ void updateDrive(const DriveConfig& config) {
   );
 
   const float processedTurn = slewLimit(
-    expoTurn(turn, config.expoTurnConfig),
+    expoTurn(turn, config.expoTurnConfig, config.drivetrain),
     prevTurn,
     MotionType::TURN,
     config.slew
@@ -118,7 +117,7 @@ void updateDrive(const DriveConfig& config) {
     velocities = curvature(processedThrottle, processedTurn);
   }
 
-  leftDrivetrain.move(velocities.leftVelocity);
-  rightDrivetrain.move(velocities.rightVelocity);
+  config.drivetrain.leftDrivetrain->move(velocities.leftVelocity);
+  config.drivetrain.rightDrivetrain->move(velocities.rightVelocity);
 }
 } // namespace control

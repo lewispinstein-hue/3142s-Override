@@ -2,13 +2,13 @@
 
 // MotorGroups are {front, middle, back}
 pros::MotorGroup leftDrivetrain(
-  {-10, -17, -9},
+  {1, 18},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );
 
 pros::MotorGroup rightDrivetrain(
-  {8, 15, 20},
+  {-11, -10},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );
@@ -21,42 +21,40 @@ pros::MotorGroup dr4bMech({-4, -5});
 // pros::adi::Pneumatics claw(11);
 // pros::Motor clawPitch(12);
 
-pros::Rotation horizontalOdom(7);
-pros::Rotation verticalOdom(8);
-pros::IMU imu(18);
+pros::Rotation horizontalOdom(-17);
+pros::Rotation verticalOdom(12);
+pros::IMU imu(15);
 
 
 lemlib::TrackingWheel verticalTrackingWheel(
   &verticalOdom,
   lemlib::Omniwheel::NEW_2,
-  0.5
+  0.915 // 0.915
 );
 
 lemlib::TrackingWheel horizontalTrackingWheel(
   &horizontalOdom,
   lemlib::Omniwheel::NEW_2,
-  2.15
+  0.49 // 0.49
 );
 
 lemlib::OdomSensors sensors(
+  &verticalTrackingWheel,
   nullptr,
-  nullptr,
-  nullptr,
+  &horizontalTrackingWheel,
   nullptr,
   &imu
 );
 
-const double drivetrainThickness = 3;
-const double drivetrainSeparationDistance = 14.5;
-const double wheelToInsideOfDrivetrainDistance = 1.75;
-const double trackWidth = (drivetrainSeparationDistance - (drivetrainThickness * 2) + (wheelToInsideOfDrivetrainDistance * 2));
+const double trackWidth = 10.75;
+const double wheelbase = 10.5;
 
 lemlib::Drivetrain drivetrain(
   &leftDrivetrain,
   &rightDrivetrain,
   trackWidth,
-  lemlib::Omniwheel::OLD_325,
-  350,
+  lemlib::Omniwheel::NEW_275,
+  24.0/36.0 * 600,
   2
 );
 

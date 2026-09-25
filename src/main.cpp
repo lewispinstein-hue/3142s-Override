@@ -1,4 +1,6 @@
-#include "setup.hpp"
+#include "./../include/setup.hpp"
+#include "drive.hpp"
+#include "liblvgl/llemu.hpp"
 
 void initializeDr4bDebug() {
   mvlib::Logger& logger = mvlib::Logger::getInstance();
@@ -25,13 +27,16 @@ void initializeDr4bDebug() {
 void initialize() {
   leftDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
   rightDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
-
+  pros::lcd::initialize();
   dr4bMech.tare_position_all(); // Dr4b MUST be lowered completely before starting
   auto& logger = mvlib::Logger::getInstance();
   mvlib::setOdom(&chassis);
   logger.setRobot({
     .leftDrivetrain = &leftDrivetrain,
     .rightDrivetrain = &rightDrivetrain
+  });
+  logger.setTimings({
+    .terminalPollingRate = 60_mvMs,
   });
   logger.setMinLogLevel(LogLevel::DEBUG);
   // logger.setDefaultWatches({true, true, true});
@@ -58,11 +63,11 @@ void initialize() {
     .retriggerable = true
   });
 
-  logger.watch("Robot in/s", LogLevel::INFO, WatchMode::onInterval, 75_mvMs, 
-  [&]() { 
-    const double avgVelocity = (leftDrivetrain.get_actual_velocity() + rightDrivetrain.get_actual_velocity()) / 2;
-    return (3.25 * M_PI / 60.0) * (36.0/60.0 * avgVelocity);
-  });
+  // logger.watch("Robot in/s", LogLevel::INFO, WatchMode::onInterval, 75_mvMs, 
+  // [&]() { 
+  //   const double avgVelocity = (leftDrivetrain.get_actual_velocity() + rightDrivetrain.get_actual_velocity()) / 2;
+  //   return (3.25 * M_PI / 60.0) * (36.0/60.0 * avgVelocity);
+  // });
   // logger.setPrintWatches(false);
 }
 
@@ -126,10 +131,17 @@ control::ExpoTurnConfig expoTurnConfig{
   127
 };
 
+control::Drivetrain controlDrive{
+  &leftDrivetrain,
+  &rightDrivetrain,
+  &controller
+};
+
 control::DriveConfig config{
   .slew = slew,
   .expoTurnConfig = expoTurnConfig,
   .driveMode = control::DriveMode::ARCADE,
+  .drivetrain = controlDrive,
   .expoThrottle = 1.8,
   .deadband = 10,
   .desaturateBias = 0.5
@@ -144,6 +156,11 @@ void opcontrol() {
     if (controller.get_digital(DIGITAL_L1)) {
       logger.info("L1"); 
     }
+
+    // print pose to screen
+    lemlib::Pose pose = chassis.getPose();
+    pros::lcd::print(1, "X: %.2f | Y: %.2f | Theta: %.2f", pose.x, pose.y, pose.theta);
     pros::delay(10);
+
   }
 }
