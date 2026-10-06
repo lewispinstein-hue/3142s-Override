@@ -2,13 +2,13 @@
 
 // MotorGroups are {front, middle, back}
 pros::MotorGroup leftDrivetrain(
-  {1, 18},
+  {-16, 1, 18},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );
 
 pros::MotorGroup rightDrivetrain(
-  {-11, -10},
+  {2, -11, -10},
   pros::v5::MotorGears::blue,
   pros::v5::MotorUnits::degrees
 );
@@ -59,9 +59,9 @@ lemlib::Drivetrain drivetrain(
 );
 
 lemlib::ControllerSettings lateralPID(
-  10,  // proportional gain (kP)
+  11.75,  // proportional gain (kP)
   0,   // integral gain (kI)
-  3,   // derivative gain (kD)
+  8,   // derivative gain (kD)
   3,         // anti windup
   1,          // small error range, in inches
   100, // small error range timeout, in milliseconds
@@ -71,9 +71,9 @@ lemlib::ControllerSettings lateralPID(
 );
 
 lemlib::ControllerSettings angularPID(
-  2,   // proportional gain (kP)
-  0,   // integral gain (kI)
-  10,  // derivative gain (kD)
+  3.5,   // proportional gain (kP)
+  0.0,   // integral gain (kI)
+  20,  // derivative gain (kD)
   3,         // anti windup
   1,          // small error range, in inches
   100, // small error range timeout, in milliseconds

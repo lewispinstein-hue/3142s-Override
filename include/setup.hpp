@@ -28,3 +28,4 @@ extern pros::adi::Pneumatics claw;
 extern pros::Motor clawPitch;
 
 void dr4bHandle();
+extern void MotionViewAuton();

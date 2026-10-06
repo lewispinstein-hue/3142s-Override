@@ -60,6 +60,8 @@ class PID {
          * @endcode
          */
         void reset();
+
+        double getOutput();
     protected:
         // gains
         const float kP;
@@ -72,5 +74,6 @@ class PID {
 
         float integral = 0;
         float prevError = 0;
+        double latestOut = 0;
 };
 } // namespace lemlib

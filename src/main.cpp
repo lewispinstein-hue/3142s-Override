@@ -1,6 +1,7 @@
 #include "./../include/setup.hpp"
 #include "drive.hpp"
 #include "liblvgl/llemu.hpp"
+#include "pros/screen.h"
 
 void initializeDr4bDebug() {
   mvlib::Logger& logger = mvlib::Logger::getInstance();
@@ -27,7 +28,6 @@ void initializeDr4bDebug() {
 void initialize() {
   leftDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
   rightDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
-  pros::lcd::initialize();
   dr4bMech.tare_position_all(); // Dr4b MUST be lowered completely before starting
   auto& logger = mvlib::Logger::getInstance();
   mvlib::setOdom(&chassis);
@@ -41,7 +41,7 @@ void initialize() {
   logger.setMinLogLevel(LogLevel::DEBUG);
   // logger.setDefaultWatches({true, true, true});
   // initializeDr4bDebug();
-  logger.setLoggingLocation("/beta/run#1.log", MissingFolderPolicy::useRoot);
+  logger.setLoggingLocation("/beta/run#1.log");
 
   chassis.calibrate();
   chassis.setPose(0, 0, 0);
@@ -68,8 +68,12 @@ void initialize() {
   //   const double avgVelocity = (leftDrivetrain.get_actual_velocity() + rightDrivetrain.get_actual_velocity()) / 2;
   //   return (3.25 * M_PI / 60.0) * (36.0/60.0 * avgVelocity);
   // });
+
+  logger.watch("Angular PID", LogLevel::INFO, WatchMode::onInterval, 10_mvMs, 
+  [&]() { return chassis.angularPID.getOutput(); });
   // logger.setPrintWatches(false);
 }
+
 
 
 /**
@@ -125,9 +129,9 @@ control::Slew slew{
 };
 
 control::ExpoTurnConfig expoTurnConfig{
-  4,
-  120,
-  100,
+  1.75,
+  90,
+  90,
   127
 };
 
@@ -147,9 +151,17 @@ control::DriveConfig config{
   .desaturateBias = 0.5
 };
 
+screen::Manager ui;
+
 void opcontrol() {
   auto& logger = mvlib::Logger::getInstance();
-  logger.info("Opcontrol!");
+  pros::delay(1000);
+  // MotionViewAuton();
+  chassis.turnToHeading(180, 15000, {.direction = AngularDirection::CW_CLOCKWISE}, false);
+  ui.printToScreen("Touch screen to continue...");
+  ui.waitForScreenTouch(5000);
+  ui.clearScreen();
+  chassis.turnToHeading(0, 15000, {.direction = AngularDirection::CCW_COUNTERCLOCKWISE}, false);
   while (true) {
     dr4bHandle();
     control::updateDrive(config);
@@ -159,7 +171,7 @@ void opcontrol() {
 
     // print pose to screen
     lemlib::Pose pose = chassis.getPose();
-    pros::lcd::print(1, "X: %.2f | Y: %.2f | Theta: %.2f", pose.x, pose.y, pose.theta);
+    pros::screen::print(pros::E_TEXT_SMALL, 10, 10, "X: %.2f | Y: %.2f | Theta: %.2f", pose.x, pose.y, pose.theta);
     pros::delay(10);
 
   }
