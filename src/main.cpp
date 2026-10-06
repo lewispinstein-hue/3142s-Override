@@ -69,7 +69,7 @@ void initialize() {
   //   return (3.25 * M_PI / 60.0) * (36.0/60.0 * avgVelocity);
   // });
 
-  logger.watch("Angular PID", LogLevel::INFO, WatchMode::onInterval, 10_mvMs, 
+  logger.watch("Angular PID", LogLevel::INFO, WatchMode::onInterval, 1000_mvMs, 
   [&]() { return chassis.angularPID.getOutput(); });
   // logger.setPrintWatches(false);
 }
@@ -156,12 +156,12 @@ screen::Manager ui;
 void opcontrol() {
   auto& logger = mvlib::Logger::getInstance();
   pros::delay(1000);
-  // MotionViewAuton();
-  chassis.turnToHeading(180, 15000, {.direction = AngularDirection::CW_CLOCKWISE}, false);
-  ui.printToScreen("Touch screen to continue...");
-  ui.waitForScreenTouch(5000);
-  ui.clearScreen();
-  chassis.turnToHeading(0, 15000, {.direction = AngularDirection::CCW_COUNTERCLOCKWISE}, false);
+  MotionViewAuton();
+  // chassis.turnToHeading(180, 15000, {.direction = AngularDirection::CW_CLOCKWISE}, false);
+  // ui.printToScreen("Touch screen to continue...");
+  // ui.waitForScreenTouch(5000);
+  // ui.clearScreen();
+  // chassis.turnToHeading(0, 15000, {.direction = AngularDirection::CCW_COUNTERCLOCKWISE}, false);
   while (true) {
     dr4bHandle();
     control::updateDrive(config);

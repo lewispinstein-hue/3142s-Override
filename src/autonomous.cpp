@@ -1,18 +1,16 @@
 #include "setup.hpp"
 void MotionViewAuton() {
-chassis.setPose(0, 0, 0);
-chassis.moveToPoint(-0.2, -0.7, 4000, {.maxSpeed = 127});
-chassis.turnToHeading(0, 10000, {.maxSpeed = 127});
-chassis.moveToPoint(-0.2, 22.9, 4000, {.maxSpeed = 127});
-chassis.turnToHeading(273.181, 10000, {.maxSpeed = 127});
-chassis.moveToPoint(-23.4, 23.4, 4000, {.maxSpeed = 127});
-chassis.turnToHeading(135.556, 10000, {.maxSpeed = 127});
-chassis.moveToPoint(-23.8, 0.1, 4000, {.maxSpeed = 127});
-chassis.turnToHeading(47.784, 10000, {.maxSpeed = 127});
-chassis.moveToPoint(-12.3, 11.1, 4000, {.maxSpeed = 127});
-chassis.turnToHeading(177.338, 10000, {.maxSpeed = 127});
-chassis.moveToPoint(-12.1, -5.2, 4000, {.maxSpeed = 127});
-chassis.turnToHeading(60.222, 10000, {.maxSpeed = 127});
-chassis.moveToPoint(0, -0.5, 4000, {.maxSpeed = 127});
-chassis.turnToHeading(331.642, 10000, {.maxSpeed = 127});
+chassis.setPose(62, -0.5, 270);
+chassis.moveToPoint(23, 0, 4000, {.forwards = true, .maxSpeed = 127});
+chassis.turnToHeading(20, 1000);
+chassis.moveToPoint(29.5, 25.5, 2000, {.forwards = true, .maxSpeed = 127});
+chassis.turnToHeading(20, 1000);
+chassis.moveToPoint(42, 55, 4000, {.forwards = true, .maxSpeed = 127});
+chassis.turnToHeading(170, 1000);
+chassis.moveToPoint(47, 26.5, 4000, {.forwards = true, .maxSpeed = 51});
+chassis.turnToHeading(180, 1000, {}, false);
+chassis.waitUntilDone();
+chassis.moveToPoint(46.5, 66.5, 4000, {.forwards = false, .maxSpeed = 127});
+chassis.moveToPoint(62, 49, 4000, {.forwards = false, .maxSpeed = 127});
+chassis.waitUntilDone();
 }
