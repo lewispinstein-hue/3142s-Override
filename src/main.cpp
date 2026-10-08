@@ -38,10 +38,13 @@ void initialize() {
   logger.setTimings({
     .terminalPollingRate = 60_mvMs,
   });
+  logger.setBuildDate(__DATE__);
   logger.setMinLogLevel(LogLevel::DEBUG);
   // logger.setDefaultWatches({true, true, true});
   // initializeDr4bDebug();
-  logger.setLoggingLocation("/beta/run#1.log");
+  logger.setLoggingLocation("/DemoRouteFromRobot.log", 
+      MissingFolderPolicy::useRoot, 
+      ExistingFilePolicy::overwrite);
 
   chassis.calibrate();
   chassis.setPose(0, 0, 0);
@@ -55,13 +58,13 @@ void initialize() {
   // logger.watch("Battery %", LogLevel::INFO, WatchMode::onInterval, 2_mvS, 
   // [&]() { return pros::c::battery_get_capacity(); }, "%.1f");
 
-  logger.addWaypoint("Test 1", {
-    .tarX = 0,
-    .tarY = 5,
-    .timeoutMs = 5000,
-    .linearTol = 2,
-    .retriggerable = true
-  });
+  // logger.addWaypoint("Test 1", {
+  //   .tarX = 0,
+  //   .tarY = 5,
+  //   .timeoutMs = 5000,
+  //   .linearTol = 2,
+  //   .retriggerable = true
+  // });
 
   // logger.watch("Robot in/s", LogLevel::INFO, WatchMode::onInterval, 75_mvMs, 
   // [&]() { 
@@ -69,8 +72,8 @@ void initialize() {
   //   return (3.25 * M_PI / 60.0) * (36.0/60.0 * avgVelocity);
   // });
 
-  logger.watch("Angular PID", LogLevel::INFO, WatchMode::onInterval, 1000_mvMs, 
-  [&]() { return chassis.angularPID.getOutput(); });
+  // logger.watch("Angular PID", LogLevel::INFO, WatchMode::onInterval, 1000_mvMs, 
+  // [&]() { return chassis.angularPID.getOutput(); });
   // logger.setPrintWatches(false);
 }
 
@@ -156,7 +159,7 @@ screen::Manager ui;
 void opcontrol() {
   auto& logger = mvlib::Logger::getInstance();
   pros::delay(1000);
-  MotionViewAuton();
+  // MotionViewAuton();
   // chassis.turnToHeading(180, 15000, {.direction = AngularDirection::CW_CLOCKWISE}, false);
   // ui.printToScreen("Touch screen to continue...");
   // ui.waitForScreenTouch(5000);
@@ -165,9 +168,6 @@ void opcontrol() {
   while (true) {
     dr4bHandle();
     control::updateDrive(config);
-    if (controller.get_digital(DIGITAL_L1)) {
-      logger.info("L1"); 
-    }
 
     // print pose to screen
     lemlib::Pose pose = chassis.getPose();
