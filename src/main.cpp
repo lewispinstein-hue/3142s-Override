@@ -1,6 +1,7 @@
 #include "./../include/setup.hpp"
 #include "drive.hpp"
 #include "liblvgl/llemu.hpp"
+#include "mvlib/types.hpp"
 #include "pros/screen.h"
 
 void initializeDr4bDebug() {
@@ -31,11 +32,11 @@ void initialize() {
   claw.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
   dr4bMech.tare_position_all(); // Dr4b MUST be lowered completely before starting
   auto& logger = mvlib::Logger::getInstance();
-  mvlib::setOdom(&chassis);
+
   logger.setRobot({
     .leftDrivetrain = &leftDrivetrain,
-    .rightDrivetrain = &rightDrivetrain
-  });
+    .rightDrivetrain = nullptr
+  }, false);
   logger.setTimings({
     .terminalPollingRate = 60_mvMs,
   });
@@ -186,4 +187,32 @@ void opcontrol() {
     pros::delay(10);
 
   }
+}
+
+
+
+
+void moveLiftToPosition(double targetPosition, int timeout) {
+    double error = targetPosition - getLiftPosition();
+
+    while (fabs(error) > liftPositionTolerance) {
+        liftHoldMode();
+        error = targetPosition - getLiftPosition();
+
+        int speed = liftSpeed;
+
+        if (error <= liftFinalDistance) {
+            speed = liftFinalSpeed;
+        } else if (error <= liftMediumDistance) {
+            speed = liftSlowSpeed;
+        } else if (error <= liftSlowdownStart) {
+            speed = liftMediumSpeed;
+        }
+
+        int sign = error > 0 ? 1 : -1;
+        speed *= sign;
+
+        liftMotor1.move(speed);
+        liftMotor2.move(speed);
+    }
 }
