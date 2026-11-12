@@ -92,18 +92,18 @@ struct DriveConfig {
  * 
  * @return Limited @c target value with applied slew based on type, slew, and prev
 */
-double slewLimit(double target, float& prev, MotionType type, const Slew& slew);
+float slewLimit(float target, float& prev, MotionType type, const Slew& slew);
 
-double expoTurn(double input, const ExpoTurnConfig& config, const Drivetrain& dt);
-double expoThrottle(double input, double expoThrottle, double deadband);
+float expoTurn(float input, const ExpoTurnConfig& config, const Drivetrain& dt);
+float expoThrottle(float input, float expoThrottle, float deadband);
 
 struct Velocities {
-  float leftVelocity;
-  float rightVelocity;
+  int leftVelocity;
+  int rightVelocity;
 };
 
-Velocities arcade(double throttle, double turn, float desaturateBias);
-Velocities curvature(double throttle, double turn);
+Velocities arcade(float throttle, float turn, float expo, float desaturateBias = 0.5);
+Velocities curvature(float throttle, float turn, float desaturateBias = 0.5);
 
 void updateDrive(const DriveConfig& config);
 

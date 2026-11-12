@@ -167,6 +167,8 @@ void initializeLiftHeight() {
   pros::delay(100); // let lift start moving
 
   while (dr4bMech.get_actual_velocity(0) > 5) {
+    if (!std::isfinite(dr4bMech.get_actual_velocity(0))) break;
+
     // Wait until lift is done moving up
     pros::delay(20);
   }

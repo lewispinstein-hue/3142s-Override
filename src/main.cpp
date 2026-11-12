@@ -21,6 +21,7 @@ void captureBoomerang(const char* runId,
                       lemlib::Pose p,
                       int timeoutMs,
                       lemlib::MoveToPoseParams params);
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -31,7 +32,7 @@ void initialize() {
   leftDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
   rightDrivetrain.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
   claw.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-  initializeLiftHeight();
+  // initializeLiftHeight();
   auto& logger = mvlib::Logger::getInstance();
 
   logger.setRobot({
@@ -40,7 +41,7 @@ void initialize() {
   }, false);
 
   logger.setTimings({
-    .terminalPollingRate = 60_mvMs,
+    .terminalPollingRate = 80_mvMs,
   });
   mvlib::setOdom(&chassis);
   logger.setBuildDate(__DATE__);
@@ -55,24 +56,8 @@ void initialize() {
   chassis.setPose(0, 0, 0);
   logger.start();
 
-  // logger.watch("Throttle", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
-  // [&]() { return controller.get_analog(ANALOG_LEFT_Y); } );
-  // logger.watch("Turn", LogLevel::INFO, WatchMode::onInterval, 50_mvMs, 
-  // [&]() { return controller.get_analog(ANALOG_RIGHT_X); } );
-
-  logger.watch("Claw Motor Temp", LogLevel::INFO, WatchMode::onInterval, 500_mvMs, 
-    [&]() { return claw.get_temperature(); },
-    mvlib::LevelOverride<double>{
-      .elevatedLevel = LogLevel::WARN,
-      .predicate = PREDICATE(v > 45),
-      .label = "Claw Motor Overheating"
-    }).setActive(false);
-
-  logger.watch("DR4b Motor Amps", LogLevel::INFO, WatchMode::onInterval, 150_mvMs, 
-    [&]() { return dr4bMech.get_current_draw(); });
-
-  logger.watch("Claw Motor Position", LogLevel::INFO, WatchMode::onChange, 150_mvMs, 
-    [&]() { return claw.get_position(); }).setActive(false);
+  // logger.watch("DR4b Motor Amps", LogLevel::INFO, WatchMode::onInterval, 150_mvMs, 
+  //   [&]() { return dr4bMech.get_current_draw(); });
 
 
   logger.watch("Claw State", LogLevel::INFO, WatchMode::onChange, 250_mvMs, 
@@ -84,16 +69,10 @@ void initialize() {
         case ClawState::RELAXED: return "Relaxed";
         default: return "Unknown";
       }
-    }); 
-  logger.watch("DR4B height", LogLevel::INFO, WatchMode::onInterval, 100_mvMs,
-  [&]() { return (dr4bMech.get_position(0) + dr4bMech.get_position(1)) / 2; });
-  
-  logger.watch("Claw Distance Sensor", LogLevel::INFO, WatchMode::onInterval, 100_mvMs,
-  [&]() { return clawDistance.get_distance(); },
-  mvlib::LevelOverride<int32_t>{
-    .elevatedLevel = LogLevel::OFF,
-    .predicate = PREDICATE(v > 2000)
   });
+
+  // logger.watch("DR4B height", LogLevel::INFO, WatchMode::onInterval, 100_mvMs,
+  // [&]() { return (dr4bMech.get_position(0) + dr4bMech.get_position(1)) / 2; });
 }
 
 /**
@@ -126,19 +105,7 @@ void competition_initialize() {}
  * from where it left off.
  */
 void autonomous() {
-chassis.setPose(0, 64, 180);
-chassis.moveToPoint(10, 47, 4000, {.forwards = true, .maxSpeed = 127, .minSpeed = 0});
-chassis.turnToHeading(90, 2000, {.maxSpeed = 127, .minSpeed = 0});
-dr4bMech.move(100);
-pros::delay(400);
-dr4bMech.move(0);
-chassis.moveToPoint(19, 46.5, 4000, {.forwards = true, .maxSpeed = 80, .minSpeed = 0}, false);
-chassis.waitUntilDone();
-liftScoreMacro(3000);
-setClawAction(ClawState::OPEN);
-pros::delay(1000);
-chassis.moveToPoint(9.5, 47, 4000, {.forwards = false, .maxSpeed = 127, .minSpeed = 0}, false);
-chassis.turnToHeading(40, 2000, {.maxSpeed = 127, .minSpeed = 0}, false);
+
 }
 
 /**
@@ -245,10 +212,15 @@ void captureBoomerang(const char* runId,
     bmV.setActive(false);
 }
 
-void opcontrol() {
+void opcontrol  () {
   uint32_t startTime = pros::millis();
-
   auto& logger = mvlib::Logger::getInstance();
+
+  pros::delay(2000);
+  // chassis.turnToHeading(359, 10000, {.direction = AngularDirection::CW_CLOCKWISE});
+  // pros::delay(1000);
+  // chassis.moveToPoint(36, 36, 10000);
+  // MotionViewAuton();
 
   while (true) {
     dr4bHandle();

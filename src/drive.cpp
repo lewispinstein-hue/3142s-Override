@@ -2,26 +2,64 @@
 #include <algorithm>
 #include <cmath>
 
+template <typename T>
+int sgn(T val) {
+  return (T(0) < val) - (val < T(0));
+}
+
+
+float curve(float input, float expo, int deadband = 10) {
+  // return 0 if input is within deadzone
+  if (fabs(input) <= deadband) return 0;
+  // g is the output of g(x) as defined in the Desmos graph
+  const float g = fabs(input) - deadband;
+  // g127 is the output of g(127) as defined in the Desmos graph
+  const float g127 = 127 - deadband;
+  // i is the output of i(x) as defined in the Desmos graph
+  const float i = pow(expo, g - 127) * g * sgn(input);
+  // i127 is the output of i(127) as defined in the Desmos graph
+  const float i127 = pow(expo, g127 - 127) * g127;
+
+  // Min speed = 20
+  return (127.0 - 20) / (127) * i * 127 / i127 + 20 * sgn(input);
+}
+
 namespace control {
-Velocities arcade(double throttle, double turn, float desaturateBias) {
+Velocities arcade(float throttle, float turn, float expo, float desaturateBias) {
+  // use drive curves if they have not been disabled
+  throttle = std::round(curve(throttle, expo));
+  turn = std::round(curve(turn, expo));
+
   // desaturate motors based on joyBias
   if (std::abs(throttle) + std::abs(turn) > 127) {
-    const double oldThrottle = throttle;
-    const double oldTurn = turn;
+    float oldThrottle = throttle;
+    float oldTurn = turn;
     throttle *= (1 - desaturateBias * std::abs(oldTurn / 127.0));
     turn *= (1 - (1 - desaturateBias) * std::abs(oldThrottle / 127.0));
+    // ensure the sum of the two values is equal to 127
+    // this check is necessary because of integer division
+    if (std::abs(turn) + std::abs(throttle) == 126) {
+      if (desaturateBias < 0.5) throttle += sgn(throttle);
+      else turn += sgn(turn);
+    }
   }
 
   float leftPower = throttle + turn;
   float rightPower = throttle - turn;
 
-  return {leftPower, rightPower};
+  float max = std::max(std::fabs(leftPower), std::fabs(rightPower)) / 127;
+  if (max > 1) {
+    leftPower /= max;
+    rightPower /= max;
+  }
+
+  return {(int)leftPower, (int)rightPower};
 }
 
-Velocities curvature(double throttle, double turn) {
+Velocities curvature(float throttle, float turn, float expo, float desaturateBias) {
   // If we're not moving forwards change to arcade drive
   if (throttle == 0) {
-    return arcade(throttle, turn, 0.5);
+    return arcade(throttle, turn, expo, desaturateBias);
   }
 
   // use drive curves if they have not been disabled
@@ -34,54 +72,55 @@ Velocities curvature(double throttle, double turn) {
     leftPower /= max;
     rightPower /= max;
   }
-  return {leftPower, rightPower};
+
+  return {(int)leftPower, (int)rightPower};
 }
 
-double normVel(double rpm) {
-  double v = (rpm / 4.7244094488); // Locked at blue gearset
+float normVel(float rpm) {
+  float v = (rpm / 4.7244094488); // Locked at blue gearset
   // If your using a different gearset, change this to (maxRPM / 127)
-  return std::clamp(v, -127.0, 127.0);
+  return std::clamp(v, -127.0f, 127.0f);
 }
 
-double slewLimit(double target, float& prev, MotionType type, const Slew& slew) {
+float slewLimit(float target, float& prev, MotionType type, const Slew& slew) {
 
   if (target == prev) return target;
-  double delta = target - prev;
+  float delta = target - prev;
   const bool sameDirection = (prev * target > 0);
 
-  double riseDelta = (type == MotionType::FORWARD) ? slew.risingThrottle : slew.risingAngle;
-  double fallDelta = (type == MotionType::FORWARD) ? slew.fallingThrottle : slew.fallingAngle;
+  float riseDelta = (type == MotionType::FORWARD) ? slew.risingThrottle : slew.risingAngle;
+  float fallDelta = (type == MotionType::FORWARD) ? slew.fallingThrottle : slew.fallingAngle;
 
   // Starting from zero is still acceleration; direction reversals use the falling limit.
   bool accelerating = (std::fabs(prev) == 0 || sameDirection) && (std::fabs(target) > std::fabs(prev));
-  double maxDelta = accelerating ? riseDelta : fallDelta;
+  float maxDelta = accelerating ? riseDelta : fallDelta;
   if (delta > maxDelta) delta = maxDelta;
   if (delta < -maxDelta) delta = -maxDelta;
   prev += delta;
   return prev;
 }
 
-double expoThrottle(double input, double expoThrottle, double deadband) {
+float expoThrottle(float input, float expoThrottle, float deadband) {
   if (fabs(input) < deadband) return 0;
-  double norm = input / 127.0;
-  double curved = pow(fabs(norm), expoThrottle);
+  float norm = input / 127.0;
+  float curved = pow(fabs(norm), expoThrottle);
   curved = curved * (norm >= 0 ? 1 : -1); 
   if (fabs(curved) >= 1) return 127 * ((norm >= 0) ? 1 : -1);
   return curved * 127.0;
 }
 
-double expoTurn(double input, const ExpoTurnConfig& config, const Drivetrain& dt) {
+float expoTurn(float input, const ExpoTurnConfig& config, const Drivetrain& dt) {
   const bool controlOverride =
     std::abs(dt.master->get_analog(ANALOG_RIGHT_X)) > config.joystickSpeedOverrideThreshold;
 
-  const double turnMultiplier = 
+  const float turnMultiplier = 
     controlOverride ? config.overrideSpeedMultiplier
                     : config.defaultSpeedMultiplier;
 
-  double norm = input / 127.0;
-  double linear = norm;
-  double exponential = pow(fabs(norm), config.expoTurn) * ((norm >= 0) ? 1 : -1);
-  double blended = (0.39 * linear + 0.42 * exponential) / (0.39 + 0.42);
+  float norm = input / 127.0;
+  float linear = norm;
+  float exponential = pow(fabs(norm), config.expoTurn) * ((norm >= 0) ? 1 : -1);
+  float blended = (0.39 * linear + 0.42 * exponential) / (0.39 + 0.42);
   if (fabs(blended) >= 1) return 127 * ((norm >= 0) ? 1 : -1);
   return blended * turnMultiplier;
 }
@@ -112,9 +151,9 @@ void updateDrive(const DriveConfig& config) {
 
   Velocities velocities;
   if (config.driveMode == DriveMode::ARCADE) {
-    velocities = arcade(processedThrottle, processedTurn, config.desaturateBias);
+    velocities = arcade(processedThrottle, processedTurn, config.expoTurnConfig.expoTurn, config.desaturateBias);
   } else {
-    velocities = curvature(processedThrottle, processedTurn);
+    velocities = curvature(processedThrottle, processedTurn, config.expoTurnConfig.expoTurn, config.desaturateBias);
   }
 
   config.drivetrain.leftDrivetrain->move(velocities.leftVelocity);
