@@ -130,10 +130,10 @@ control::Slew slew{
 };
 
 control::ExpoTurnConfig expoTurnConfig{
-  2,
+  1,
   127,
-  127,
-  127
+  145,
+  120
 };
 
 control::Drivetrain controlDrive{
@@ -149,12 +149,10 @@ control::DriveConfig config{
   .drivetrain = controlDrive,
   .expoThrottle = 1.4,
   .deadband = 10,
-  .desaturateBias = 0.6
+  .desaturateBias = 0.99
 };
 
 screen::Manager ui;
-
-
 
 // Gippity test
 void captureBoomerang(const char* runId,
@@ -212,11 +210,11 @@ void captureBoomerang(const char* runId,
     bmV.setActive(false);
 }
 
-void opcontrol  () {
+void opcontrol() {
   uint32_t startTime = pros::millis();
   auto& logger = mvlib::Logger::getInstance();
 
-  pros::delay(2000);
+  // pros::delay(2000);
   // chassis.turnToHeading(359, 10000, {.direction = AngularDirection::CW_CLOCKWISE});
   // pros::delay(1000);
   // chassis.moveToPoint(36, 36, 10000);

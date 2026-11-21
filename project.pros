@@ -592,7 +592,7 @@
       }
     },
     "upload_options": {
-      "after": "screen",
+      "after": "run",
       "slot": 1
     },
     "use_early_access": false
